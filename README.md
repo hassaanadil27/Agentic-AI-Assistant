@@ -1,7 +1,10 @@
-# PMTS Multi-Agent Project Review Board
+# BSDI Project AI Agent — Tracks A, B, and C
 
-**Track C — Advanced: Multi-Agent Review Board**
-Agentic AI over the PMTS Projects List (Government of Balochistan development portfolio).
+Complete agentic AI workflows over the PMTS Projects List (Government of Balochistan development portfolio).
+
+- **Track A — Query Agent:** natural-language plan → tool → observe → answer loop.
+- **Track B — Audit Agent:** autonomous check planning, independent audit tools, and prioritized synthesis.
+- **Track C — Multi-Agent Review Board:** Finance, Delivery, Equity, and Coordinator agents.
 
 > "We have an extra PKR 2 billion. Which currently `Not Started` projects should be
 > funded first, and why?"
@@ -28,10 +31,15 @@ variants, ~82% missing start dates, etc.). This system:
 - Never invents a project ID, cost, or statistic — every number is computed by
   Python and traceable back to a specific tool call.
 
-## 2. Track C Requirements — Mapping
+## 2. All Track Requirements — Mapping
 
 | Requirement | Where it's satisfied |
 |---|---|
+| Track A grounded question answering | `agents/query_agent.py`; uses `filter_projects`, `aggregate_projects`, `group_projects`, and `get_project` in a visible loop |
+| Track A four mandatory query shapes | Cross-filter count, filtered budget total, ranked group aggregation, and sorted top-N rows are covered by automated tests |
+| Track B autonomous planning | `agents/audit_agent.py` asks the live LLM to select ≥4 checks from independently callable tools |
+| Track B ≥4 issue classes | `tools/audit_tools.py`: missing start date, high-cost/no contractor, high Not-Started share, category outliers, and tender mismatch |
+| Track B prioritized synthesis | Audit results include counts/examples and are passed to a separate grounded synthesis step |
 | ≥3 specialist agents + 1 coordinator | `agents/finance_agent.py`, `delivery_agent.py`, `equity_agent.py`, `coordinator_agent.py` |
 | Structured agent-to-agent messages | `models/messages.py` (`AgentReport`, `AgentFinding`, `ConflictRecord`, `FinalReport`) — no free-form text parsing |
 | Each specialist grounds claims in queried data | Every finding carries `Evidence` objects naming the source tool; agents can only reach data through named tools |
@@ -54,7 +62,7 @@ variants, ~82% missing start dates, etc.). This system:
   tool calls, with deterministic (not LLM-driven) synthesis.
 - Streamlit dashboard: dataset overview, charts, data-quality report, live agent
   activity panel, final report with CSV/Markdown export.
-- 42 automated tests covering loading, cleaning, tools, agents, and the budget
+- 45 automated tests covering loading, cleaning, all three tracks, tools, agents, and the budget
   constraint.
 - Full run logging to `run_logs/*.json` for auditability.
 

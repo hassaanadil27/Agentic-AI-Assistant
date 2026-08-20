@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 
 from agents.coordinator_agent import CoordinatorAgent
 from agents.llm_provider import DemoProvider, get_provider
+from agents.query_agent import QueryAgent
+from agents.audit_agent import AuditAgent
 from orchestration.state import save_run_log
 from tools.chat_context import build_chat_context
 from tools.data_loader import load_projects
@@ -51,7 +53,7 @@ def persist():
 def sidebar(chat):
     with st.sidebar:
         st.markdown('<div class="brand">BSDI Project <span class="brand-dot">AI Agent</span></div>', unsafe_allow_html=True)
-        page = st.radio("Workspace", ["💬 AI Chat", "📋 Review Board"], label_visibility="collapsed")
+        page = st.radio("Workspace", ["🟢 Track A · Query", "🟡 Track B · Audit", "🔴 Track C · Review Board"], label_visibility="collapsed")
         if st.button("＋ New Chat", type="primary"):
             item = new_chat(); st.session_state.chats.insert(0, item)
             st.session_state.active_chat_id = item["id"]; persist(); st.rerun()
@@ -80,7 +82,7 @@ def render_chart(spec):
 
 
 def chat_page(chat, provider, is_demo, provider_label):
-    st.markdown('<div class="hero"><h1>BSDI Project AI Agent</h1><p>Ask about 4,083 development projects, compare districts, and create evidence-based visualisations.</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero"><h1>Track A · Query Agent</h1><p>Ask grounded natural-language questions; the agent plans, calls query tools, observes results, and cites its evidence.</p></div>', unsafe_allow_html=True)
     if is_demo:
         st.info("Demo Mode is active. Data analysis remains available; connect a supported API token for conversational AI.")
     else:
@@ -95,7 +97,7 @@ def chat_page(chat, provider, is_demo, provider_label):
         with st.chat_message("assistant", avatar="📊"):
             st.markdown(f"**{spec['title']}**"); render_chart(spec)
 
-    prompt = st.chat_input("Ask about BSDI projects…", disabled=is_demo)
+    prompt = st.chat_input("Ask about BSDI projects…")
     if prompt:
         from datetime import datetime
         chat["messages"].append({"role": "user", "content": prompt, "timestamp": datetime.now().strftime("%H:%M")})
@@ -105,14 +107,9 @@ def chat_page(chat, provider, is_demo, provider_label):
         with st.chat_message("assistant", avatar="📊"):
             with st.spinner("AI is thinking…"):
                 try:
-                    context = build_chat_context(prompt)
-                    response = provider.complete(
-                        "You are the BSDI Project AI Agent. Answer only from the authoritative PROJECT DATA CONTEXT. "
-                        "Never invent values. Costs are PKR millions. If a project is absent, request its Global ID. "
-                        "Be concise and analytical.\n\nPROJECT DATA CONTEXT:\n" + context,
-                        chat["messages"],
-                    )
-                    answer = response.text
+                    result = QueryAgent(provider).ask(prompt, chat["messages"][:-1])
+                    answer = result.answer
+                    st.session_state.last_query_trace = result.trace
                 except Exception as exc:
                     logging.exception("Chat request failed")
                     answer = "Something went wrong while processing your request. Please try again."
@@ -122,6 +119,29 @@ def chat_page(chat, provider, is_demo, provider_label):
             try: chat["charts"].append(create_chart_spec(prompt))
             except Exception: logging.exception("Unable to generate chart")
         persist(); st.rerun()
+    if "last_query_trace" in st.session_state:
+        with st.expander("Plan · Tool calls · Evidence"):
+            st.code("\n".join(st.session_state.last_query_trace))
+
+
+def audit_page(provider, is_demo):
+    st.markdown('<div class="hero"><h1>Track B · Autonomous Audit Agent</h1><p>Give the agent an audit goal. It creates its own check plan, executes independent tools, and prioritises portfolio risks.</p></div>', unsafe_allow_html=True)
+    goal = st.text_area("Audit goal", "Find the projects most at risk of failing or being mismanaged.")
+    if st.button("Run Autonomous Audit", type="primary"):
+        with st.spinner("Audit Agent is planning and running checks…"):
+            try: st.session_state.audit_result = AuditAgent(provider).run(goal)
+            except Exception as exc: st.error(f"Audit failed: {exc}")
+    if "audit_result" in st.session_state:
+        result = st.session_state.audit_result
+        st.subheader("Autonomous plan")
+        for index, check in enumerate(result.plan, 1): st.write(f"{index}. `{check}`")
+        st.subheader("Prioritized audit report"); st.markdown(result.report)
+        st.subheader("Structured findings")
+        for finding in result.findings:
+            with st.expander(f"{finding['check']} · {finding['count']} issue(s)"):
+                st.json(finding)
+        with st.expander("Plan · Act · Observe trace"):
+            st.code("\n".join(result.trace))
 
 
 def review_page(provider, is_demo):
@@ -163,4 +183,9 @@ provider_label = {
     "GrokProvider": "Grok",
 }.get(provider.__class__.__name__, "Demo")
 chat = active_chat(); page = sidebar(chat)
-chat_page(chat, provider, is_demo, provider_label) if page == "💬 AI Chat" else review_page(provider, is_demo)
+if page.startswith("🟢"):
+    chat_page(chat, provider, is_demo, provider_label)
+elif page.startswith("🟡"):
+    audit_page(provider, is_demo)
+else:
+    review_page(provider, is_demo)

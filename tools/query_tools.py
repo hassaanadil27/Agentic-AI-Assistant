@@ -88,6 +88,8 @@ def filter_projects(
     has_xen: Optional[bool] = None,
     global_ids: Optional[list[str]] = None,
     limit: int = 20,
+    sort_by: Optional[str] = None,
+    descending: bool = False,
 ) -> FilterResult:
     """
     Tool 2. Returns matching project rows (capped at MAX_ROWS_RETURNED)
@@ -99,6 +101,11 @@ def filter_projects(
         has_contractor, has_xen, global_ids,
     )
     true_count = len(filtered)
+    allowed_sort_columns = {"cost_m", "progress_pct", "global_id", "district", "category", "status"}
+    if sort_by:
+        if sort_by not in allowed_sort_columns:
+            raise ValueError(f"Unsupported sort column {sort_by!r}. Valid: {sorted(allowed_sort_columns)}")
+        filtered = filtered.sort_values(sort_by, ascending=not descending)
     capped_limit = min(limit, MAX_ROWS_RETURNED)
     subset = filtered.head(capped_limit)
 
@@ -118,6 +125,31 @@ def filter_projects(
         projects=records,
         filters_applied=filters_applied,
     )
+
+
+def group_projects(
+    group_by: str,
+    operation: str = "count",
+    district: Optional[str] = None,
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    phase: Optional[str] = None,
+    limit: int = 50,
+) -> list[dict]:
+    """Group filtered projects and return ranked counts or budget totals."""
+    allowed_groups = {"district", "category", "status", "phase"}
+    if group_by not in allowed_groups:
+        raise ValueError(f"Unsupported group_by {group_by!r}. Valid: {sorted(allowed_groups)}")
+    df = _apply_filters(get_dataframe(), district=district, category=category, status=status, phase=phase)
+    if operation == "count":
+        result = df.groupby(group_by).size().rename("value").reset_index()
+    elif operation == "total_cost":
+        result = df.groupby(group_by)["cost_m"].sum().rename("value").reset_index()
+    elif operation == "average_cost":
+        result = df.groupby(group_by)["cost_m"].mean().rename("value").reset_index()
+    else:
+        raise ValueError("operation must be count, total_cost, or average_cost")
+    return result.sort_values("value", ascending=False).head(min(limit, 50)).to_dict("records")
 
 
 def aggregate_projects(
