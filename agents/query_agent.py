@@ -6,7 +6,37 @@ import re
 from dataclasses import dataclass, field
 
 from agents.llm_provider import LLMProvider, extract_json_object
-from tools.query_tools import aggregate_projects, filter_projects, get_project, group_projects
+from tools.query_tools import aggregate_projects, filter_projects, get_project
+
+try:
+    from tools.query_tools import group_projects
+except ImportError:  # Backward compatibility for partially updated deployments.
+    def group_projects(
+        group_by: str,
+        operation: str = "count",
+        district: str | None = None,
+        category: str | None = None,
+        status: str | None = None,
+        phase: str | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
+        from tools.data_loader import get_dataframe
+
+        if group_by not in {"district", "category", "status", "phase"}:
+            raise ValueError("group_by must be district, category, status, or phase")
+        df = get_dataframe()
+        for column, value in {"district": district, "category": category, "status": status, "phase": phase}.items():
+            if value:
+                df = df[df[column].astype(str).str.casefold() == value.casefold()]
+        if operation == "count":
+            grouped = df.groupby(group_by).size().rename("value").reset_index()
+        elif operation == "total_cost":
+            grouped = df.groupby(group_by)["cost_m"].sum().rename("value").reset_index()
+        elif operation == "average_cost":
+            grouped = df.groupby(group_by)["cost_m"].mean().rename("value").reset_index()
+        else:
+            raise ValueError("operation must be count, total_cost, or average_cost")
+        return grouped.sort_values("value", ascending=False).head(min(limit, 50)).to_dict("records")
 
 
 @dataclass
