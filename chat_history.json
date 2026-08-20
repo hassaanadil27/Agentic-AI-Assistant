@@ -1,0 +1,137 @@
+[
+  {
+    "id": "e11ab7eaaab34fb09f188f5aa97f359e",
+    "title": "hi",
+    "created_at": "2026-08-20T06:34:33.376508+00:00",
+    "messages": [
+      {
+        "role": "user",
+        "content": "hi",
+        "timestamp": "11:51"
+      },
+      {
+        "role": "assistant",
+        "content": "Hello! How can I assist you today?",
+        "timestamp": "11:51"
+      }
+    ],
+    "charts": []
+  },
+  {
+    "id": "c526e6e56a0343138fce1962944e94fb",
+    "title": "which sector has the highest project…",
+    "created_at": "2026-08-20T06:32:47.215699+00:00",
+    "messages": [
+      {
+        "role": "user",
+        "content": "which sector has the highest project allocation",
+        "timestamp": "11:51"
+      },
+      {
+        "role": "assistant",
+        "content": "The sector with the highest project allocation is \"PHE\" (Public Health Engineering) with a total budget of PKR 14,350.38 million.",
+        "timestamp": "11:51"
+      },
+      {
+        "role": "user",
+        "content": "which columns has null values",
+        "timestamp": "11:57"
+      },
+      {
+        "role": "assistant",
+        "content": "The dataset does not explicitly indicate any columns with null values. If you are looking for specific data or need to check a particular project or sector, please provide more details.",
+        "timestamp": "11:57"
+      },
+      {
+        "role": "user",
+        "content": "missing values",
+        "timestamp": "11:58"
+      },
+      {
+        "role": "assistant",
+        "content": "The dataset does not explicitly mention any missing values or null entries. If you need to analyze a specific project or dataset, please specify, and I can assist further.",
+        "timestamp": "11:58"
+      }
+    ],
+    "charts": [
+      {
+        "id": "chart-1787208712389",
+        "question": "which sector has the highest project allocation",
+        "title": "Portfolio budget by category",
+        "type": "bar",
+        "x": "category",
+        "y": "value",
+        "x_label": "Category",
+        "y_label": "Budget (PKR M)",
+        "data": [
+          {
+            "category": "PHE",
+            "value": 14350.3813,
+            "projects": 1288
+          },
+          {
+            "category": "Education",
+            "value": 9839.7943,
+            "projects": 1116
+          },
+          {
+            "category": "Other",
+            "value": 8119.582,
+            "projects": 571
+          },
+          {
+            "category": "Road",
+            "value": 6270.96,
+            "projects": 215
+          },
+          {
+            "category": "Health",
+            "value": 3050.9519,
+            "projects": 336
+          },
+          {
+            "category": "Irrigation",
+            "value": 2334.152,
+            "projects": 125
+          },
+          {
+            "category": "Building",
+            "value": 2151.408,
+            "projects": 115
+          },
+          {
+            "category": "Energy",
+            "value": 1470.766,
+            "projects": 89
+          },
+          {
+            "category": "Municipal",
+            "value": 1168.9,
+            "projects": 70
+          },
+          {
+            "category": "Security",
+            "value": 1109.394,
+            "projects": 74
+          },
+          {
+            "category": "Sports",
+            "value": 973.422,
+            "projects": 48
+          },
+          {
+            "category": "Sewerage",
+            "value": 648.04,
+            "projects": 24
+          },
+          {
+            "category": "Social Welfare",
+            "value": 62.3,
+            "projects": 12
+          }
+        ],
+        "created_at": "2026-08-20T06:51:52.390369+00:00"
+      }
+    ]
+  }
+]
