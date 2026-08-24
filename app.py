@@ -64,6 +64,100 @@ def persist():
     save_chats(st.session_state.chats)
 
 
+FRIENDLY_LABELS = {
+    "global_id": "Project ID", "risk_type": "Risk", "detail": "What this means",
+    "status": "Project status", "progress_pct": "Progress (%)", "district": "District",
+    "category": "Category", "cost_m": "Cost (PKR million)", "category_median_m": "Category median (PKR million)",
+    "category_q1_m": "Lower quartile (PKR million)", "category_q3_m": "Upper quartile (PKR million)",
+    "metric_value": "Measured value", "subject": "District or category", "method": "Assessment method",
+    "reason": "Why it was flagged", "description": "Project description", "score": "Priority score",
+    "finance_assessment": "Financial assessment", "delivery_assessment": "Delivery assessment",
+    "equity_assessment": "Equity assessment", "reason_selected": "Reason selected",
+}
+
+AUDIT_EXPLANATIONS = {
+    "in_progress_missing_start": "Projects marked In Progress even though no work-start date is recorded.",
+    "high_cost_missing_contractor": "High-cost projects that do not have a contractor recorded.",
+    "districts_high_not_started_share": "Districts where an unusually large share of projects has not started.",
+    "category_cost_outliers": "Projects whose cost is unusually high compared with similar projects in the same category.",
+    "in_progress_without_tender": "Projects marked In Progress without matching tender information.",
+}
+
+
+def friendly_name(value: str) -> str:
+    return str(value).replace("_", " ").strip().title()
+
+
+def friendly_table(rows: list[dict] | pd.DataFrame) -> pd.DataFrame:
+    frame = rows.copy() if isinstance(rows, pd.DataFrame) else pd.DataFrame(rows)
+    if frame.empty:
+        return frame
+    return frame.rename(columns={column: FRIENDLY_LABELS.get(column, friendly_name(column)) for column in frame.columns})
+
+
+def render_activity(lines: list[str]) -> None:
+    """Show technical execution logs as a readable progress timeline."""
+    rows = []
+    for number, raw in enumerate(lines, 1):
+        agent, message = "System", raw
+        if raw.startswith("[") and "]" in raw:
+            agent, message = raw[1:].split("]", 1)
+            message = message.strip()
+        prefix, separator, detail = message.partition(":")
+        stage = prefix if separator and prefix in {"PLAN", "ACT", "OBSERVE", "REASON", "STOP"} else "Update"
+        description = detail.strip() if stage != "Update" else message
+        if "(" in description and ("Calling " in description or stage == "ACT"):
+            action = description.split("(", 1)[0].replace("Calling ", "").strip()
+            description = f"Used {friendly_name(action)} to retrieve verified portfolio information."
+        elif stage == "OBSERVE" and description.startswith(("{", "[")):
+            description = "The data tool returned verified evidence for this step."
+        elif " -> count=" in description:
+            tool, count = description.split(" -> count=", 1)
+            description = f"{friendly_name(tool)} found {count} matching records."
+        elif " -> " in description and "item(s) returned" in description:
+            tool, result = description.split(" -> ", 1)
+            description = f"{friendly_name(tool)} returned {result.replace('item(s)', 'records')}."
+        description = description.replace("_", " ")
+        rows.append({"Step": number, "Team member": agent, "Stage": friendly_name(stage), "What happened": description})
+    if rows:
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+    else:
+        st.info("No activity has been recorded yet.")
+
+
+def render_data_quality() -> None:
+    report = get_data_quality_report()
+    total = max(report.total_rows, 1)
+    st.markdown("#### Data completeness overview")
+    cols = st.columns(3)
+    cols[0].metric("Projects reviewed", f"{report.total_rows:,}")
+    cols[1].metric("Missing contractor", f"{report.missing_contractor:,}", f"{report.missing_contractor / total:.1%} of projects", delta_color="off")
+    cols[2].metric("Missing responsible XEN", f"{report.missing_xen:,}", f"{report.missing_xen / total:.1%} of projects", delta_color="off")
+    cols = st.columns(3)
+    cols[0].metric("Missing work-start date", f"{report.missing_work_started:,}", f"{report.missing_work_started / total:.1%} of projects", delta_color="off")
+    cols[1].metric("Invalid cost values", f"{report.invalid_cost_count:,}")
+    cols[2].metric("Invalid progress values", f"{report.invalid_progress_count:,}")
+    if report.duplicate_global_ids:
+        st.warning(f"{len(report.duplicate_global_ids)} duplicate project ID(s) need review: {', '.join(report.duplicate_global_ids[:10])}")
+    else:
+        st.success("No duplicate project IDs were found.")
+    with st.expander("Agency names consolidated during cleaning"):
+        rows = [{"Standard agency name": name, "Names found in source data": ", ".join(variants)} for name, variants in report.agency_variant_groups.items()]
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+    with st.expander("Contractor names standardized"):
+        if report.contractor_variant_examples:
+            table = pd.DataFrame(report.contractor_variant_examples).rename(columns={"raw": "Original name", "normalized": "Standardized name"})
+            st.dataframe(table, width="stretch", hide_index=True)
+        else:
+            st.info("No contractor-name variations were found.")
+    with st.expander("Phone numbers requiring manual review"):
+        if report.suspicious_phone_examples:
+            table = pd.DataFrame(report.suspicious_phone_examples).rename(columns={"global_id": "Project ID", "raw": "Phone number in source data"})
+            st.dataframe(table, width="stretch", hide_index=True)
+        else:
+            st.success("No suspicious phone numbers were found.")
+
+
 def sidebar(chat):
     with st.sidebar:
         st.markdown('<div class="brand">BSDI Project <span class="brand-dot">AI Agent</span></div>', unsafe_allow_html=True)
@@ -165,8 +259,9 @@ def chat_page(chat, provider, is_demo, provider_label):
             except Exception: logging.exception("Unable to generate chart")
         persist(); st.rerun()
     if "last_query_trace" in st.session_state:
-        with st.expander("Plan · Tool calls · Evidence"):
-            st.code("\n".join(st.session_state.last_query_trace))
+        with st.expander("How this answer was verified"):
+            st.caption("A plain-language record of the data checks used to produce the answer.")
+            render_activity(st.session_state.last_query_trace)
 
 
 def audit_page(provider, is_demo):
@@ -181,15 +276,29 @@ def audit_page(provider, is_demo):
             except Exception as exc: st.error(f"Audit failed: {exc}")
     if "audit_result" in st.session_state:
         result = st.session_state.audit_result
-        st.subheader("Autonomous plan")
-        for index, check in enumerate(result.plan, 1): st.write(f"{index}. `{check}`")
+        st.subheader("Audit plan")
+        for index, check in enumerate(result.plan, 1):
+            st.markdown(f"**{index}. {friendly_name(check)}**  \n{AUDIT_EXPLANATIONS.get(check, 'A portfolio risk and data-quality check.')}")
         st.subheader("Prioritized audit report"); st.markdown(result.report)
-        st.subheader("Structured findings")
+        st.subheader("Detailed findings")
         for finding in result.findings:
-            with st.expander(f"{finding['check']} · {finding['count']} issue(s)"):
-                st.json(finding)
-        with st.expander("Plan · Act · Observe trace"):
-            st.code("\n".join(result.trace))
+            check = finding.get("check", "audit_check")
+            count = int(finding.get("count", 0))
+            with st.expander(f"{friendly_name(check)} · {count:,} issue(s)"):
+                st.markdown(AUDIT_EXPLANATIONS.get(check, "This check identified portfolio records that may require review."))
+                a, b = st.columns(2)
+                a.metric("Records flagged", f"{count:,}")
+                if "threshold_m" in finding:
+                    b.metric("High-cost threshold", f"PKR {finding['threshold_m']:,.2f}M")
+                examples = finding.get("examples", [])
+                if examples:
+                    st.markdown("**Examples requiring attention**")
+                    st.dataframe(friendly_table(examples), width="stretch", hide_index=True)
+                else:
+                    st.success("No examples were flagged by this check.")
+        with st.expander("How the audit was performed"):
+            st.caption("The audit steps are translated into plain language for transparency.")
+            render_activity(result.trace)
 
 
 def review_page(provider, is_demo):
@@ -202,7 +311,7 @@ def review_page(provider, is_demo):
         districts = pd.DataFrame([d.model_dump() for d in district_statistics()]).sort_values("total_budget_m", ascending=False).head(15)
         categories = pd.DataFrame([c.model_dump() for c in category_statistics()]).sort_values("total_budget_m", ascending=False)
         a, b = st.columns(2); a.bar_chart(districts.set_index("district")["total_budget_m"]); b.bar_chart(categories.set_index("category")["total_budget_m"])
-    with tabs[1]: st.json(get_data_quality_report().model_dump(), expanded=False)
+    with tabs[1]: render_data_quality()
     with tabs[2]:
         budget = st.number_input("Funding envelope (PKR Million)", 100.0, 20000.0, 2000.0, 100.0)
         if st.button("🚀 Run Multi-Agent Review", type="primary"):
@@ -217,10 +326,14 @@ def review_page(provider, is_demo):
             report, activity, specialists, path = st.session_state.review_result
             st.success(f"Review complete · {len(report.recommended_projects)} projects selected")
             c = st.columns(3); c[0].metric("Available", f"PKR {report.budget_available_m:,.1f}M"); c[1].metric("Recommended", f"PKR {report.total_recommended_m:,.2f}M"); c[2].metric("Remaining", f"PKR {report.remaining_budget_m:,.2f}M")
-            rec = pd.DataFrame([r.model_dump() for r in report.recommended_projects])
+            rec_raw = pd.DataFrame([r.model_dump() for r in report.recommended_projects])
+            rec = friendly_table(rec_raw)
+            st.markdown("#### Recommended projects")
+            st.caption("Projects are ranked by financial feasibility, delivery readiness, and equitable allocation.")
             st.dataframe(rec, width="stretch", hide_index=True)
-            st.download_button("Download recommendations", rec.to_csv(index=False), "pmts_recommendations.csv", "text/csv")
-            with st.expander("Agent activity"): st.code("\n".join(activity))
+            st.download_button("Download recommendations", rec_raw.to_csv(index=False), "pmts_recommendations.csv", "text/csv")
+            with st.expander("How the review board reached its decision"):
+                render_activity(activity)
 
 
 init_state()
