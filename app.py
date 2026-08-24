@@ -10,8 +10,9 @@ from dotenv import load_dotenv
 from agents.coordinator_agent import CoordinatorAgent
 from agents.llm_provider import DemoProvider, get_provider
 from agents.query_agent import QueryAgent
-from agents.audit_agent import AuditAgent
-from orchestration.state import save_run_log
+from agents.audit_agent import AuditAgent, AuditResult
+from models.messages import AgentReport, FinalReport
+from orchestration.state import load_audit_state, load_latest_run, save_audit_state, save_run_log
 from tools.chat_context import build_chat_context
 from tools.data_loader import load_projects
 from tools.data_quality_tools import get_data_quality_report
@@ -34,7 +35,20 @@ st.markdown(APP_CSS, unsafe_allow_html=True)
 def init_state():
     if "chats" not in st.session_state:
         st.session_state.chats = load_chats() or [new_chat()]
-        st.session_state.active_chat_id = st.session_state.chats[0]["id"]
+        requested_chat = st.query_params.get("chat")
+        available_ids = {item["id"] for item in st.session_state.chats}
+        st.session_state.active_chat_id = requested_chat if requested_chat in available_ids else st.session_state.chats[0]["id"]
+    if "audit_result" not in st.session_state:
+        saved_audit = load_audit_state()
+        if saved_audit and isinstance(saved_audit.get("result"), dict):
+            st.session_state.audit_result = AuditResult(**saved_audit["result"])
+            st.session_state.audit_goal = saved_audit.get("goal", "")
+    if "review_result" not in st.session_state:
+        saved_review = load_latest_run()
+        if saved_review:
+            report = FinalReport.model_validate(saved_review["final_report"])
+            specialists = {name: AgentReport.model_validate(value) for name, value in saved_review.get("specialist_reports", {}).items()}
+            st.session_state.review_result = (report, saved_review.get("activity_log", []), specialists, "saved run")
 
 
 def active_chat():
@@ -53,15 +67,25 @@ def persist():
 def sidebar(chat):
     with st.sidebar:
         st.markdown('<div class="brand">BSDI Project <span class="brand-dot">AI Agent</span></div>', unsafe_allow_html=True)
-        page = st.radio("Workspace", ["🟢 Track A · Query", "🟡 Track B · Audit", "🔴 Track C · Review Board"], label_visibility="collapsed")
+        pages = ["🟢 Track A · Query", "🟡 Track B · Audit", "🔴 Track C · Review Board"]
+        view_index = {"query": 0, "audit": 1, "review": 2}.get(st.query_params.get("view", "query"), 0)
+        if "workspace" not in st.session_state:
+            st.session_state.workspace = pages[view_index]
+
+        def sync_workspace():
+            selected = pages.index(st.session_state.workspace)
+            st.query_params["view"] = ["query", "audit", "review"][selected]
+            st.query_params["chat"] = st.session_state.active_chat_id
+
+        page = st.radio("Workspace", pages, key="workspace", on_change=sync_workspace, label_visibility="collapsed")
         if st.button("＋ New Chat", type="primary"):
             item = new_chat(); st.session_state.chats.insert(0, item)
-            st.session_state.active_chat_id = item["id"]; persist(); st.rerun()
+            st.session_state.active_chat_id = item["id"]; st.query_params["chat"] = item["id"]; persist(); st.rerun()
         st.caption("CHAT HISTORY")
         for item in st.session_state.chats:
             label = ("● " if item["id"] == chat["id"] else "") + item["title"]
             if st.button(label, key=f"open-{item['id']}"):
-                st.session_state.active_chat_id = item["id"]; st.rerun()
+                st.session_state.active_chat_id = item["id"]; st.query_params["chat"] = item["id"]; st.rerun()
         st.divider()
         questions = [m["content"] for m in chat["messages"] if m["role"] == "user"]
         has_content = bool(chat["messages"] or chat["charts"])
@@ -98,9 +122,18 @@ def chat_page(chat, provider, is_demo, provider_label):
         st.info("Demo Mode is active. Data analysis remains available; connect a supported API token for conversational AI.")
     else:
         st.caption(f"Connected to {provider_label} · {provider.model_name}")
+    suggested_prompt = None
     if not chat["messages"]:
-        st.markdown("#### What would you like to analyse?")
-        st.caption("Try: “Compare portfolio budgets by district” or “Show the percentage of projects by status.”")
+        with st.container(key="starter_actions"):
+            st.markdown('<div class="starter-title">Start an analysis</div><div class="starter-copy">Choose a quick action or write your own question below.</div>', unsafe_allow_html=True)
+            suggestions = [
+                ("📍 District budgets", "Compare portfolio budgets by district"),
+                ("📊 Project status", "Show the percentage of projects by status"),
+                ("⚠️ Delivery risks", "Which projects have the highest delivery risk?"),
+            ]
+            for col, (label, question) in zip(st.columns(3), suggestions):
+                if col.button(label, key=f"suggest-{label}", width="stretch"):
+                    suggested_prompt = question
     for message in chat["messages"]:
         with st.chat_message(message["role"], avatar="🧑‍💼" if message["role"] == "user" else "📊"):
             st.markdown(message["content"]); st.caption(message.get("timestamp", ""))
@@ -108,7 +141,8 @@ def chat_page(chat, provider, is_demo, provider_label):
         with st.chat_message("assistant", avatar="📊"):
             st.markdown(f"**{spec['title']}**"); render_chart(spec)
 
-    prompt = st.chat_input("Ask about BSDI projects…")
+    typed_prompt = st.chat_input("Ask about BSDI projects…")
+    prompt = suggested_prompt or typed_prompt
     if prompt:
         from datetime import datetime
         chat["messages"].append({"role": "user", "content": prompt, "timestamp": datetime.now().strftime("%H:%M")})
@@ -137,10 +171,13 @@ def chat_page(chat, provider, is_demo, provider_label):
 
 def audit_page(provider, is_demo):
     st.markdown('<div class="hero"><h1>Track B · Autonomous Audit Agent</h1><p>Give the agent an audit goal. It creates its own check plan, executes independent tools, and prioritises portfolio risks.</p></div>', unsafe_allow_html=True)
-    goal = st.text_area("Audit goal", "Find the projects most at risk of failing or being mismanaged.")
+    goal = st.text_area("Audit goal", st.session_state.get("audit_goal", "Find the projects most at risk of failing or being mismanaged."))
     if st.button("Run Autonomous Audit", type="primary"):
         with st.spinner("Audit Agent is planning and running checks…"):
-            try: st.session_state.audit_result = AuditAgent(provider).run(goal)
+            try:
+                st.session_state.audit_result = AuditAgent(provider).run(goal)
+                st.session_state.audit_goal = goal
+                save_audit_state(goal, st.session_state.audit_result)
             except Exception as exc: st.error(f"Audit failed: {exc}")
     if "audit_result" in st.session_state:
         result = st.session_state.audit_result
