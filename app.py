@@ -67,7 +67,7 @@ def persist():
 def sidebar(chat):
     with st.sidebar:
         st.markdown('<div class="brand">BSDI Project <span class="brand-dot">AI Agent</span></div>', unsafe_allow_html=True)
-        pages = ["🟢 Track A · Query", "🟡 Track B · Audit", "🔴 Track C · Review Board"]
+        pages = ["Track A · Query", "Track B · Audit", "Track C · Review Board"]
         view_index = {"query": 0, "audit": 1, "review": 2}.get(st.query_params.get("view", "query"), 0)
         if "workspace" not in st.session_state:
             st.session_state.workspace = pages[view_index]
@@ -231,9 +231,9 @@ provider_label = {
     "GrokProvider": "Grok",
 }.get(provider.__class__.__name__, "Demo")
 chat = active_chat(); page = sidebar(chat)
-if page.startswith("🟢"):
+if page.startswith("Track A"):
     chat_page(chat, provider, is_demo, provider_label)
-elif page.startswith("🟡"):
+elif page.startswith("Track B"):
     audit_page(provider, is_demo)
 else:
     review_page(provider, is_demo)
