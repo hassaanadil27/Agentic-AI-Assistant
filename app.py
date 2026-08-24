@@ -62,15 +62,26 @@ def sidebar(chat):
             label = ("● " if item["id"] == chat["id"] else "") + item["title"]
             if st.button(label, key=f"open-{item['id']}"):
                 st.session_state.active_chat_id = item["id"]; st.rerun()
-        st.divider(); st.caption("PROJECT TOOLS")
+        st.divider()
         questions = [m["content"] for m in chat["messages"] if m["role"] == "user"]
-        if st.button("📊 Generate Chart", disabled=not questions):
-            chat["charts"].append(create_chart_spec(questions[-1])); persist(); st.rerun()
-        st.download_button("📄 Download Project Details", project_report(chat), "bsdi_project_report.pdf", "application/pdf", width="stretch")
-        st.download_button("📈 Download Charts PDF", charts_report(chat), "bsdi_charts_report.pdf", "application/pdf", width="stretch")
-        if st.button("🗑 Clear Current Chat", disabled=not chat["messages"] and not chat["charts"]):
-            chat.update(messages=[], charts=[], title="New conversation"); persist(); st.rerun()
-        st.caption(f"{len(chat['messages'])} messages · {len(chat['charts'])} charts")
+        has_content = bool(chat["messages"] or chat["charts"])
+        with st.container(key="project_tools"):
+            st.markdown(
+                '<div class="tools-heading"><span class="tools-icon">✦</span>'
+                '<div><strong>Project Tools</strong><small>Create and export your analysis</small></div></div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("📊  Generate Chart", type="primary", disabled=not questions, key="project_generate", help="Ask a question first to generate a chart"):
+                chat["charts"].append(create_chart_spec(questions[-1])); persist(); st.rerun()
+            st.download_button("📄  Download Project Details", project_report(chat), "bsdi_project_report.pdf", "application/pdf", width="stretch", disabled=not chat["messages"], key="project_details")
+            st.download_button("📈  Download Charts PDF", charts_report(chat), "bsdi_charts_report.pdf", "application/pdf", width="stretch", disabled=not chat["charts"], key="project_charts")
+            if st.button("🗑️  Clear Current Chat", disabled=not has_content, key="project_clear"):
+                chat.update(messages=[], charts=[], title="New conversation"); persist(); st.rerun()
+            st.markdown(
+                f'<div class="tools-status"><span>{len(chat["messages"])} messages</span>'
+                f'<span>{len(chat["charts"])} charts</span></div>',
+                unsafe_allow_html=True,
+            )
     return page
 
 
