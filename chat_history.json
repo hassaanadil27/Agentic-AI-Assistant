@@ -1,9 +1,312 @@
 [
   {
+    "id": "2380c170ef37449e8a8d9cc575ba4f36",
+    "title": "Compare portfolio budgets by district",
+    "created_at": "2026-08-25T06:46:01.056392+00:00",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Compare portfolio budgets by district",
+        "timestamp": "11:46"
+      },
+      {
+        "role": "assistant",
+        "content": "Result: 4,083.00 projects. Filters: none. Matching rows: 4083.",
+        "timestamp": "11:46"
+      }
+    ],
+    "charts": [
+      {
+        "id": "chart-1787640365114",
+        "question": "Compare portfolio budgets by district",
+        "title": "Portfolio budget by district",
+        "type": "bar",
+        "x": "district",
+        "y": "value",
+        "x_label": "District",
+        "y_label": "Budget (PKR M)",
+        "data": [
+          {
+            "district": "Khuzdar",
+            "value": 1743.102,
+            "projects": 182
+          },
+          {
+            "district": "Kech",
+            "value": 1699.84,
+            "projects": 159
+          },
+          {
+            "district": "Pishin",
+            "value": 1699.61,
+            "projects": 136
+          },
+          {
+            "district": "Gawadar",
+            "value": 1674.062,
+            "projects": 88
+          },
+          {
+            "district": "Qilla Saifullah",
+            "value": 1669.7,
+            "projects": 90
+          },
+          {
+            "district": "Ziarat",
+            "value": 1635.2,
+            "projects": 91
+          },
+          {
+            "district": "Jhal Magsi",
+            "value": 1611.456,
+            "projects": 96
+          },
+          {
+            "district": "Mastung",
+            "value": 1587.9098999999999,
+            "projects": 99
+          },
+          {
+            "district": "Kharan",
+            "value": 1526.4089999999999,
+            "projects": 67
+          },
+          {
+            "district": "Washuk",
+            "value": 1506.67,
+            "projects": 97
+          },
+          {
+            "district": "Jaffarabad",
+            "value": 1496.6716999999999,
+            "projects": 62
+          },
+          {
+            "district": "Musa Khel",
+            "value": 1493.83,
+            "projects": 145
+          },
+          {
+            "district": "Awaran",
+            "value": 1478.4288999999999,
+            "projects": 233
+          },
+          {
+            "district": "Duki",
+            "value": 1475.731,
+            "projects": 94
+          },
+          {
+            "district": "Dera Bugti",
+            "value": 1464.356,
+            "projects": 74
+          }
+        ],
+        "created_at": "2026-08-25T06:46:05.117437+00:00"
+      }
+    ]
+  },
+  {
+    "id": "bbc5d61e8df94f4ea1dbd48e3de10a2f",
+    "title": "how are you",
+    "created_at": "2026-08-25T05:36:21.274802+00:00",
+    "messages": [
+      {
+        "role": "user",
+        "content": "how are you",
+        "timestamp": "10:48"
+      },
+      {
+        "role": "assistant",
+        "content": "Result: 4,083.00 projects. Filters: none. Matching rows: 4083.",
+        "timestamp": "10:48"
+      },
+      {
+        "role": "user",
+        "content": "hi",
+        "timestamp": "10:49"
+      },
+      {
+        "role": "assistant",
+        "content": "Hi! I’m the BSDI Project AI Agent. I can compare project allocations, budgets, sectors, districts, statuses, delivery risks, and individual projects.",
+        "timestamp": "10:49"
+      },
+      {
+        "role": "user",
+        "content": "what are the total number of projects",
+        "timestamp": "10:58"
+      },
+      {
+        "role": "assistant",
+        "content": "Result: 4,083.00 projects. Filters: none. Matching rows: 4083.",
+        "timestamp": "10:58"
+      },
+      {
+        "role": "user",
+        "content": "which project to start first",
+        "timestamp": "10:58"
+      },
+      {
+        "role": "assistant",
+        "content": "Result: 4,083.00 projects. Filters: none. Matching rows: 4083.",
+        "timestamp": "10:58"
+      },
+      {
+        "role": "user",
+        "content": "which project to start first",
+        "timestamp": "11:15"
+      },
+      {
+        "role": "assistant",
+        "content": "Result: 4,083.00 projects. Filters: none. Matching rows: 4083.",
+        "timestamp": "11:15"
+      }
+    ],
+    "charts": []
+  },
+  {
+    "id": "fce27621a6374a5ab09ea36bfe627e9b",
+    "title": "Compare portfolio budgets by district",
+    "created_at": "2026-08-25T05:35:59.930354+00:00",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Compare portfolio budgets by district",
+        "timestamp": "10:36"
+      },
+      {
+        "role": "assistant",
+        "content": "Result: 4,083.00 projects. Filters: none. Matching rows: 4083.",
+        "timestamp": "10:36"
+      },
+      {
+        "role": "user",
+        "content": "🧑‍💼\nwhich sector has the highest project allocation",
+        "timestamp": "10:36"
+      },
+      {
+        "role": "assistant",
+        "content": "Result: 4,083.00 projects. Filters: none. Matching rows: 4083.",
+        "timestamp": "10:36"
+      }
+    ],
+    "charts": [
+      {
+        "id": "chart-1787636166476",
+        "question": "Compare portfolio budgets by district",
+        "title": "Portfolio budget by district",
+        "type": "bar",
+        "x": "district",
+        "y": "value",
+        "x_label": "District",
+        "y_label": "Budget (PKR M)",
+        "data": [
+          {
+            "district": "Khuzdar",
+            "value": 1743.102,
+            "projects": 182
+          },
+          {
+            "district": "Kech",
+            "value": 1699.84,
+            "projects": 159
+          },
+          {
+            "district": "Pishin",
+            "value": 1699.61,
+            "projects": 136
+          },
+          {
+            "district": "Gawadar",
+            "value": 1674.062,
+            "projects": 88
+          },
+          {
+            "district": "Qilla Saifullah",
+            "value": 1669.7,
+            "projects": 90
+          },
+          {
+            "district": "Ziarat",
+            "value": 1635.2,
+            "projects": 91
+          },
+          {
+            "district": "Jhal Magsi",
+            "value": 1611.456,
+            "projects": 96
+          },
+          {
+            "district": "Mastung",
+            "value": 1587.9098999999999,
+            "projects": 99
+          },
+          {
+            "district": "Kharan",
+            "value": 1526.4089999999999,
+            "projects": 67
+          },
+          {
+            "district": "Washuk",
+            "value": 1506.67,
+            "projects": 97
+          },
+          {
+            "district": "Jaffarabad",
+            "value": 1496.6716999999999,
+            "projects": 62
+          },
+          {
+            "district": "Musa Khel",
+            "value": 1493.83,
+            "projects": 145
+          },
+          {
+            "district": "Awaran",
+            "value": 1478.4288999999999,
+            "projects": 233
+          },
+          {
+            "district": "Duki",
+            "value": 1475.731,
+            "projects": 94
+          },
+          {
+            "district": "Dera Bugti",
+            "value": 1464.356,
+            "projects": 74
+          }
+        ],
+        "created_at": "2026-08-25T05:36:06.481594+00:00"
+      }
+    ]
+  },
+  {
     "id": "e11ab7eaaab34fb09f188f5aa97f359e",
-    "title": "New conversation",
+    "title": "how many projects are pending in khuz…",
     "created_at": "2026-08-20T06:34:33.376508+00:00",
-    "messages": [],
+    "messages": [
+      {
+        "role": "user",
+        "content": "how many projects are pending in khuzdar",
+        "timestamp": "10:33"
+      },
+      {
+        "role": "assistant",
+        "content": "Result: 182.00 projects. Filters: {'district': 'Khuzdar'}. Matching rows: 182.",
+        "timestamp": "10:33"
+      },
+      {
+        "role": "user",
+        "content": "which project should we start first",
+        "timestamp": "10:34"
+      },
+      {
+        "role": "assistant",
+        "content": "Result: 4,083.00 projects. Filters: none. Matching rows: 4083.",
+        "timestamp": "10:34"
+      }
+    ],
     "charts": []
   },
   {

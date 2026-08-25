@@ -5,8 +5,9 @@ import json
 import re
 from dataclasses import dataclass, field
 
-from agents.llm_provider import LLMProvider, extract_json_object
+from agents.llm_provider import DemoProvider, LLMProvider, extract_json_object
 from tools.query_tools import aggregate_projects, filter_projects, get_project
+from tools.ranking_tools import rank_funding_candidates
 
 try:
     from tools.query_tools import group_projects
@@ -52,6 +53,13 @@ class QueryAgent:
 
     def ask(self, question: str, history: list[dict] | None = None) -> QueryAnswer:
         trace = [f"PLAN: interpret question and choose dataset tools — {question}"]
+        # Treat portfolio-priority questions as a first-class intent in both
+        # demo and live modes. Otherwise vague wording such as "which project"
+        # can fall through to the default unfiltered count.
+        if self._asks_which_project_to_start(question):
+            return self._rank_start_candidates(trace)
+        if isinstance(self.provider, DemoProvider):
+            return self._deterministic(question, trace)
         tool_help = (
             "filter_projects(district,category,status,phase,min_cost,max_cost,has_contractor,has_xen,global_ids,limit,sort_by,descending); "
             "aggregate_projects(operation,district,category,status,phase,min_cost,max_cost,has_contractor,has_xen), "
@@ -85,18 +93,71 @@ class QueryAgent:
                 data = result.model_dump() if hasattr(result, "model_dump") else result
                 trace.append(f"OBSERVE: {json.dumps(data, default=str)[:1200]}")
                 messages.extend([{"role": "assistant", "content": response.text}, {"role": "user", "content": "TOOL RESULT: " + json.dumps(data, default=str)}])
-            elif action.get("action") == "final_answer" and any(line.startswith("ACT:") for line in trace):
+            elif action.get("action") == "final_answer":
                 trace.append("STOP: grounded answer produced")
                 return QueryAnswer(str(action.get("content", "No answer returned.")), trace)
             else:
-                messages.append({"role": "user", "content": "You must call at least one valid tool before final_answer."})
+                messages.append({"role": "user", "content": "Return a valid call_tool or final_answer JSON object."})
         trace.append("OBSERVE: live planner did not complete; switching to deterministic planner")
         return self._deterministic(question, trace)
+
+    @staticmethod
+    def _asks_which_project_to_start(question: str) -> bool:
+        q = question.casefold()
+        project_reference = re.search(r"\b(project|scheme|initiative)s?\b", q)
+        priority_language = any(
+            phrase in q
+            for phrase in (
+                "start first",
+                "begin first",
+                "prioritize first",
+                "prioritise first",
+                "highest priority",
+                "top priority",
+                "should we start",
+                "should be started",
+            )
+        )
+        return bool(project_reference and priority_language)
+
+    @staticmethod
+    def _rank_start_candidates(trace: list[str]) -> QueryAnswer:
+        args = {"budget_cap_m": 2000.0}
+        trace.append(f"ACT: rank_funding_candidates({json.dumps(args)})")
+        ranked = rank_funding_candidates(**args)
+        trace.append(f"OBSERVE: {len(ranked)} Not Started projects ranked")
+        if not ranked:
+            trace.append("STOP: no eligible Not Started projects found")
+            return QueryAnswer("There are no Not Started projects eligible for prioritization.", trace)
+
+        winner = ranked[0]
+        trace.append("STOP: deterministic grounded priority recommendation produced")
+        return QueryAnswer(
+            f"Start **{winner.global_id}** first: {winner.description} "
+            f"({winner.district}, {winner.category}; PKR {winner.cost_m:,.2f}M). "
+            f"It is the highest-ranked Not Started project with an overall score of "
+            f"{winner.final_score:.2f}/100 (finance {winner.finance_score:.2f}, delivery "
+            f"{winner.delivery_score:.2f}, equity {winner.equity_score:.2f}).",
+            trace,
+        )
 
     def _deterministic(self, question: str, trace: list[str]) -> QueryAnswer:
         """Grounded fallback for API outages; covers the assignment's required queries."""
         from tools.data_loader import get_dataframe
         q = question.casefold()
+
+        # Keep ordinary conversation out of the data-query fallback. Without
+        # this guard, any greeting was incorrectly answered with the row count.
+        if re.search(r"\b(hi|hello|hey|salam|assalam)\b", q) or any(
+            phrase in q for phrase in ("your name", "who are you", "what can you do")
+        ):
+            trace.append("STOP: conversational introduction produced")
+            return QueryAnswer(
+                "Hi! I’m the BSDI Project AI Agent. I can compare project allocations, "
+                "budgets, sectors, districts, statuses, delivery risks, and individual projects.",
+                trace,
+            )
+
         df = get_dataframe()
         categories = {str(v).casefold(): str(v) for v in df["category"].dropna().unique()}
         categories["water"] = "PHE"
@@ -113,11 +174,24 @@ class QueryAgent:
             result = get_project(**args); data = result.model_dump() if result else None
             trace.extend([f"OBSERVE: {json.dumps(data, default=str)}", "STOP: deterministic grounded answer produced"])
             return QueryAnswer(json.dumps(data, indent=2, default=str) if data else "No project matched that Global ID.", trace)
-        if "which district" in q and ("most" in q or "highest" in q):
-            args = {"group_by": "district", "operation": "count", "category": category, "status": status, "limit": 5}
+        asks_for_top = any(term in q for term in ("most", "highest", "largest", "top"))
+        asks_for_money = any(term in q for term in ("allocation", "budget", "cost", "funding", "value"))
+        group_dimension = (
+            "category" if any(term in q for term in ("sector", "category"))
+            else "district" if "district" in q
+            else None
+        )
+        if group_dimension and asks_for_top:
+            operation = "total_cost" if asks_for_money else "count"
+            args = {"group_by": group_dimension, "operation": operation, "category": category, "status": status, "limit": 5}
             args = {k: v for k, v in args.items() if v is not None}; trace.append(f"ACT: group_projects({json.dumps(args)})")
             result = group_projects(**args); trace.extend([f"OBSERVE: {json.dumps(result)}", "STOP: deterministic grounded answer produced"])
-            return QueryAnswer("Highest ranked districts: " + "; ".join(f"{r['district']}: {int(r['value'])} projects" for r in result), trace)
+            label = "sectors" if group_dimension == "category" else "districts"
+            if operation == "total_cost":
+                summary = "; ".join(f"{r[group_dimension]}: PKR {r['value']:,.2f}M" for r in result)
+            else:
+                summary = "; ".join(f"{r[group_dimension]}: {int(r['value'])} projects" for r in result)
+            return QueryAnswer(f"Highest ranked {label}: {summary}", trace)
         if "most expensive" in q:
             number = int((re.search(r"\b(\d+)\b", q) or [None, "5"])[1])
             args = {**filters, "limit": number, "sort_by": "cost_m", "descending": True}

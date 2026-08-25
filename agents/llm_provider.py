@@ -53,6 +53,20 @@ class LLMProvider:
         raise NotImplementedError
 
 
+def _setting(name: str, default: Optional[str] = None) -> Optional[str]:
+    """Read a setting from the process or a simple NAME=value line in .env."""
+    configured = os.environ.get(name)
+    if configured:
+        return configured.strip().strip('"\'')
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    try:
+        content = env_path.read_text(encoding="utf-8")
+    except OSError:
+        return default
+    match = re.search(rf"(?m)^\s*{re.escape(name)}\s*=\s*([^#\r\n]+)", content)
+    return match.group(1).strip().strip('"\'') if match else default
+
+
 class GrokProvider(LLMProvider):
     """Small dependency-free client for xAI's OpenAI-compatible API."""
 
@@ -218,13 +232,13 @@ def get_provider() -> tuple[LLMProvider, bool]:
     loudly logs why -- if no token is present, so the app never crashes
     just because a key wasn't configured.
     """
-    demo_flag = os.environ.get("DEMO_MODE", "").strip().lower() in {"1", "true", "yes"}
+    demo_flag = (_setting("DEMO_MODE", "") or "").strip().lower() in {"1", "true", "yes"}
     if demo_flag:
         logger.info("DEMO_MODE=true -> using DemoProvider (no LLM calls).")
         return DemoProvider(), True
 
     try:
-        configured_provider = os.environ.get("LLM_PROVIDER", "").strip().lower()
+        configured_provider = (_setting("LLM_PROVIDER", "") or "").strip().lower()
         if configured_provider:
             provider_name = configured_provider
         elif _rapidapi_key():

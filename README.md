@@ -150,7 +150,19 @@ shows the API error. Chat requires a working xAI key.
 
 ## 10. Running
 
+Start the free, local FastAPI backend in one PowerShell terminal:
+
 ```powershell
+venv\Scripts\activate
+python -m uvicorn api:app --reload --host 127.0.0.1 --port 8000
+```
+
+API documentation is available at `http://127.0.0.1:8000/docs`.
+
+Start the Streamlit web frontend in a second terminal:
+
+```powershell
+venv\Scripts\activate
 python -m streamlit run app.py
 ```
 

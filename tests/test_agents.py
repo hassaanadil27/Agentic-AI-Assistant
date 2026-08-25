@@ -10,6 +10,7 @@ from agents.finance_agent import FinanceAgent
 from agents.delivery_agent import DeliveryAgent
 from agents.equity_agent import EquityAgent
 from agents.coordinator_agent import CoordinatorAgent
+from agents.query_agent import QueryAgent
 from models.messages import AgentReport
 
 
@@ -78,3 +79,25 @@ def test_coordinator_produces_visible_conflicts():
     assert len(final_report.conflicts) >= 1
     for c in final_report.conflicts:
         assert c.coordinator_resolution
+
+
+def test_query_agent_understands_highest_sector_allocation():
+    result = QueryAgent(DemoProvider()).ask("which sector has the highest project allocation")
+    assert "Highest ranked sectors:" in result.answer
+    assert "PKR" in result.answer
+    assert "4,083.00 projects" not in result.answer
+
+
+def test_query_agent_handles_introduction_question():
+    result = QueryAgent(DemoProvider()).ask("hi what is your name")
+    assert "BSDI Project AI Agent" in result.answer
+    assert "4,083.00 projects" not in result.answer
+
+
+def test_query_agent_recommends_which_project_to_start_first():
+    result = QueryAgent(DemoProvider()).ask("which project to start first")
+    assert result.answer.startswith("Start **")
+    assert "highest-ranked Not Started project" in result.answer
+    assert "finance" in result.answer and "delivery" in result.answer and "equity" in result.answer
+    assert "4,083.00 projects" not in result.answer
+    assert any(line.startswith("ACT: rank_funding_candidates") for line in result.trace)

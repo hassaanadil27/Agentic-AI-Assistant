@@ -1,4 +1,2 @@
-2026-08-24 11:45:27.035 Uvicorn server started on 0.0.0.0:8501
-2026-08-24 11:45:27.398 Did not auto detect external IP.
-Please go to https://docs.streamlit.io/ for debugging hints.
-2026-08-24 11:46:26,256 INFO Loaded 4083 project rows from C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\data\Projects.xlsx
+2026-08-25 11:43:14.190 Uvicorn server started on 127.0.0.1:8501
+2026-08-25 11:46:05,086 INFO Loaded 4083 project rows from C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\data\Projects.xlsx
