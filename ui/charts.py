@@ -90,7 +90,7 @@ def render_figure(spec: dict, chart_type: str | None = None) -> go.Figure:
     elif kind == "histogram":
         fig = px.histogram(**common, x=spec["y"])
     else:
-        fig = px.bar(**common, x=spec["x"], y=spec["y"], color_discrete_sequence=["#0D9488"])
+        fig = px.bar(**common, x=spec["x"], y=spec["y"])
         fig.update_traces(marker=dict(line=dict(width=0)))
 
     fig.update_layout(

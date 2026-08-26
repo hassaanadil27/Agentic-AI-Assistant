@@ -1,94 +1,115 @@
-"""
-Typed client used by Streamlit to call the FastAPI backend, with seamless local Python fallback.
-This guarantees the Streamlit interface works 100% reliably whether the FastAPI server is running or not.
-"""
+"""Service adapter for remote FastAPI or embedded Streamlit execution."""
 from __future__ import annotations
 
 import os
 from dataclasses import asdict
+from urllib.parse import urlparse
+
 import requests
 
-from agents.audit_agent import AuditAgent, AuditResult
-from agents.coordinator_agent import CoordinatorAgent
-from agents.llm_provider import DemoProvider, get_provider
-from agents.query_agent import QueryAgent
+from agents.audit_agent import AuditResult
 from models.messages import AgentReport, FinalReport
 from models.schemas import DataQualityReport, DatasetMetadata
-from orchestration.state import save_audit_state, save_run_log
-from tools.data_loader import load_projects
-from tools.data_quality_tools import get_data_quality_report
-from tools.finance_tools import category_statistics, district_statistics
 
-API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").rstrip("/")
+API_URL = os.getenv("API_URL", "").rstrip("/")
 
 
-def _try_api_request(method: str, path: str, timeout: float = 2.0, **kwargs) -> dict | None:
-    """Attempts to call the FastAPI backend. Returns None if backend is unreachable."""
+def _uses_embedded_service() -> bool:
+    """Streamlit Cloud cannot run the repository's second web process."""
+    if not API_URL:
+        return True
+    return (urlparse(API_URL).hostname or "").casefold() in {"localhost", "127.0.0.1", "::1"}
+
+
+def _embedded_request(path: str, payload: dict | None = None) -> dict:
+    """Run the same application services inside the Streamlit process."""
+    payload = payload or {}
+    if path == "/api/portfolio":
+        from tools.data_loader import load_projects
+        from tools.finance_tools import category_statistics, district_statistics
+
+        return {
+            "metadata": load_projects().model_dump(),
+            "district_statistics": [item.model_dump() for item in district_statistics()],
+            "category_statistics": [item.model_dump() for item in category_statistics()],
+        }
+    if path == "/api/data-quality":
+        from tools.data_quality_tools import get_data_quality_report
+
+        return get_data_quality_report().model_dump()
+    if path == "/api/query":
+        from agents.llm_provider import get_provider
+        from agents.query_agent import QueryAgent
+
+        provider, is_demo = get_provider()
+        result = QueryAgent(provider).ask(payload["question"], payload.get("history", []))
+        return {"answer": result.answer, "trace": result.trace, "is_demo": is_demo}
+    if path == "/api/audit":
+        from agents.audit_agent import AuditAgent
+        from agents.llm_provider import get_provider
+        from orchestration.state import save_audit_state
+
+        provider, _ = get_provider()
+        result = AuditAgent(provider).run(payload["goal"])
+        save_audit_state(payload["goal"], result)
+        return asdict(result)
+    if path == "/api/review":
+        from agents.coordinator_agent import CoordinatorAgent
+        from agents.llm_provider import DemoProvider, get_provider
+        from orchestration.state import save_run_log
+
+        provider, is_demo = get_provider()
+        try:
+            report, activity, specialists = CoordinatorAgent(provider, is_demo).run_review(payload["budget_cap_m"])
+        except Exception:
+            report, activity, specialists = CoordinatorAgent(DemoProvider(), True).run_review(payload["budget_cap_m"])
+        path_value = save_run_log(report, activity, specialists)
+        return {
+            "report": report.model_dump(),
+            "activity": activity,
+            "specialists": {name: value.model_dump() for name, value in specialists.items()},
+            "log_path": str(path_value),
+        }
+    raise RuntimeError(f"Unsupported embedded service path: {path}")
+
+
+def _request(method: str, path: str, **kwargs) -> dict:
+    if _uses_embedded_service():
+        return _embedded_request(path, kwargs.get("json"))
     try:
-        response = requests.request(method, f"{API_URL}{path}", timeout=timeout, **kwargs)
-        if response.status_code == 200:
-            return response.json()
-        return None
-    except Exception:
-        return None
+        response = requests.request(method, f"{API_URL}{path}", timeout=300, **kwargs)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as exc:
+        detail = ""
+        if exc.response is not None:
+            try:
+                detail = exc.response.json().get("detail", "")
+            except ValueError:
+                detail = exc.response.text
+        raise RuntimeError(detail or f"Cannot reach the configured API at {API_URL}.") from exc
 
 
 def ask_query(question: str, history: list[dict]) -> tuple[str, list[str]]:
-    data = _try_api_request("POST", "/api/query", json={"question": question, "history": history})
-    if data and "answer" in data:
-        return data["answer"], data.get("trace", [])
-    
-    # Direct Local Fallback
-    provider, _ = get_provider()
-    result = QueryAgent(provider).ask(question, history)
-    return result.answer, result.trace
+    data = _request("POST", "/api/query", json={"question": question, "history": history})
+    return data["answer"], data["trace"]
 
 
 def run_audit(goal: str) -> AuditResult:
-    data = _try_api_request("POST", "/api/audit", json={"goal": goal}, timeout=120.0)
-    if data and "plan" in data:
-        return AuditResult(**data)
-    
-    # Direct Local Fallback
-    provider, _ = get_provider()
-    result = AuditAgent(provider).run(goal)
-    save_audit_state(goal, result)
-    return result
+    return AuditResult(**_request("POST", "/api/audit", json={"goal": goal}))
 
 
 def run_review(budget_cap_m: float) -> tuple[FinalReport, list[str], dict[str, AgentReport], str]:
-    data = _try_api_request("POST", "/api/review", json={"budget_cap_m": budget_cap_m}, timeout=120.0)
-    if data and "report" in data:
-        report = FinalReport.model_validate(data["report"])
-        specialists = {name: AgentReport.model_validate(value) for name, value in data["specialists"].items()}
-        return report, data.get("activity", []), specialists, data.get("log_path", "")
-    
-    # Direct Local Fallback
-    provider, is_demo = get_provider()
-    try:
-        report, activity, specialists = CoordinatorAgent(provider, is_demo).run_review(budget_cap_m)
-    except Exception:
-        report, activity, specialists = CoordinatorAgent(DemoProvider(), True).run_review(budget_cap_m)
-    path = save_run_log(report, activity, specialists)
-    return report, activity, specialists, str(path)
+    data = _request("POST", "/api/review", json={"budget_cap_m": budget_cap_m})
+    report = FinalReport.model_validate(data["report"])
+    specialists = {name: AgentReport.model_validate(value) for name, value in data["specialists"].items()}
+    return report, data["activity"], specialists, data["log_path"]
 
 
 def get_portfolio() -> tuple[DatasetMetadata, list[dict], list[dict]]:
-    data = _try_api_request("GET", "/api/portfolio")
-    if data and "metadata" in data:
-        return DatasetMetadata.model_validate(data["metadata"]), data.get("district_statistics", []), data.get("category_statistics", [])
-    
-    # Direct Local Fallback
-    meta = load_projects()
-    d_stats = [item.model_dump() for item in district_statistics()]
-    c_stats = [item.model_dump() for item in category_statistics()]
-    return meta, d_stats, c_stats
+    data = _request("GET", "/api/portfolio")
+    return DatasetMetadata.model_validate(data["metadata"]), data["district_statistics"], data["category_statistics"]
 
 
 def get_quality() -> DataQualityReport:
-    data = _try_api_request("GET", "/api/data-quality")
-    if data and "total_rows" in data:
-        return DataQualityReport.model_validate(data)
-    
-    # Direct Local Fallback
-    return get_data_quality_report()
+    return DataQualityReport.model_validate(_request("GET", "/api/data-quality"))

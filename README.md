@@ -150,7 +150,9 @@ shows the API error. Chat requires a working xAI key.
 
 ## 10. Running
 
-Start the free, local FastAPI backend in one PowerShell terminal:
+The Streamlit app runs with an embedded service by default, so the FastAPI
+process is optional. Start it only when developing or deploying the API as a
+separate service:
 
 ```powershell
 venv\Scripts\activate
