@@ -1,122 +1,80 @@
-"""BSDI Project AI Agent — Multi-page Streamlit application."""
+"""Balochistan Development Intelligence Platform landing page."""
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
 
+_env = Path(__file__).resolve().parent / ".env"
+if _env.exists():
+    load_dotenv(_env, override=True)
+
+from ui.api_client import get_portfolio
+from ui.components import render_footer, render_header, render_section, render_sidebar_info, render_stat, render_workflow_card
 from ui.styles import APP_CSS
 
-_env_path = Path(__file__).resolve().parent / ".env"
-# RapidAPI's copied Python example is not dotenv syntax. The provider can
-# safely extract its key, while normal key=value files still use dotenv.
-if not (_env_path.exists() and "x-rapidapi-key" in _env_path.read_text(encoding="utf-8").casefold()):
-    load_dotenv(_env_path)
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-
-st.set_page_config(
-    page_title="BSDI Project AI Agent",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+st.set_page_config(page_title="Balochistan Development Intelligence", page_icon="🏛️", layout="wide", initial_sidebar_state="expanded")
 st.markdown(APP_CSS, unsafe_allow_html=True)
+render_sidebar_info()
 
+try:
+    metadata, _, _ = get_portfolio()
+except Exception as exc:
+    st.error("The portfolio could not be loaded. Confirm that the backend or local dataset is available.")
+    with st.expander("Technical details"):
+        st.code(str(exc))
+    st.stop()
 
-# Main Content
-with st.sidebar:
-    st.markdown('<div class="brand">🏢 BSDI AI Platform</div>', unsafe_allow_html=True)
-    st.divider()
-    st.caption("📍 Home")
+total = metadata.total_projects
+completed = int(metadata.status_counts.get("Completed", 0))
+in_progress = int(metadata.status_counts.get("In Progress", 0))
+not_started = int(metadata.status_counts.get("Not Started", 0))
 
-st.markdown(
-    '<div class="hero"><h1>📊 Welcome to BSDI AI Agent</h1><p>An intelligent platform for portfolio analysis, audit, and decision support</p></div>',
-    unsafe_allow_html=True
+render_header(
+    "Balochistan Development Intelligence",
+    "A single evidence-led workspace to explore the development portfolio, investigate delivery risk, and make defensible funding decisions.",
+    "Portfolio ready",
+    "green",
 )
 
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Projects", "2,847", "+142")
-col2.metric("Budget", "PKR 850M", "+12.5%")
-col3.metric("Completed", "1,243", "43.6%")
-col4.metric("In Progress", "1,341", "47.1%")
+cols = st.columns(4)
+metrics = [
+    ("Total schemes", f"{total:,}", f"{metadata.districts} districts · {metadata.categories} sectors", "Portfolio", "blue"),
+    ("Portfolio value", f"PKR {metadata.total_portfolio_m / 1000:,.1f}B", f"PKR {metadata.total_portfolio_m:,.0f} million", "Allocation", "blue"),
+    ("Completed", f"{completed:,}", f"{completed / max(total, 1):.1%} of all schemes", "Delivered", "green"),
+    ("Needs action", f"{not_started:,}", f"Plus {in_progress:,} schemes in progress", "Not started", "amber"),
+]
+for column, values in zip(cols, metrics):
+    with column:
+        render_stat(*values)
 
-st.divider()
+render_section("Choose your workflow", "Start with the question you need to answer; each workspace stays grounded in the same portfolio data.")
+cards = [
+    ("▦", "Explore the portfolio", "Filter schemes, compare delivery status, and inspect district or sector allocation.", "pages/1_Overview_and_Explorer.py", "Open explorer"),
+    ("✦", "Ask the AI assistant", "Use plain language for exact counts, costs, comparisons, and ranked project questions.", "pages/2_AI_Assistant.py", "Start a conversation"),
+    ("△", "Run a risk audit", "Scan for missing accountability fields, tender mismatches, delivery gaps, and cost outliers.", "pages/3_Risk_Audit.py", "Open risk audit"),
+    ("◎", "Allocate a budget", "Have Finance, Delivery, and Equity specialists build a budget-safe funding shortlist.", "pages/4_Budget_Review_Board.py", "Open review board"),
+]
+row_a = st.columns(2)
+row_b = st.columns(2)
+for column, (icon, title, copy, path, label) in zip([*row_a, *row_b], cards):
+    with column:
+        render_workflow_card(icon, title, copy)
+        st.page_link(path, label=f"{label}  →", width="stretch")
+        st.write("")
 
-st.markdown("### 🚀 Quick Start")
+render_section("Built for explainable decisions", "The model assists with planning and narrative; source-of-truth operations remain deterministic.")
+explain_cols = st.columns(3)
+explainers = [
+    ("01", "Calculated, not guessed", "Counts, sums, rankings, and budget limits are executed in Python against the Excel portfolio."),
+    ("02", "Traceable evidence", "Agent findings retain source tools, affected project IDs, and a public action trace."),
+    ("03", "Works without an API", "Offline demo mode still runs the real tools and dataset using a deterministic investigation plan."),
+]
+for column, (number, title, copy) in zip(explain_cols, explainers):
+    with column:
+        with st.container(border=True):
+            st.caption(number)
+            st.markdown(f"**{title}**")
+            st.caption(copy)
 
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    with st.container(border=True):
-        st.markdown("#### 🏠 Dashboard")
-        st.caption("View portfolio overview and key metrics")
-        st.page_link("pages/1_dashboard.py", label="Open Dashboard", icon="🏠", width="stretch")
-
-with col2:
-    with st.container(border=True):
-        st.markdown("#### 🔍 Query Agent")
-        st.caption("Ask natural-language questions about your projects")
-        st.page_link("pages/2_query_agent.py", label="Open Query Agent", icon="🔍", width="stretch")
-
-with col3:
-    with st.container(border=True):
-        st.markdown("#### 🔐 Audit Agent")
-        st.caption("Run autonomous audits to find portfolio risks")
-        st.page_link("pages/3_audit_agent.py", label="Open Audit Agent", icon="🔐", width="stretch")
-
-with col4:
-    with st.container(border=True):
-        st.markdown("#### 📋 Review Board")
-        st.caption("Multi-agent project prioritization system")
-        st.page_link("pages/4_review_board.py", label="Open Review Board", icon="📋", width="stretch")
-
-st.divider()
-
-st.markdown("### 📚 Features")
-
-feature1, feature2, feature3 = st.columns(3)
-
-with feature1:
-    st.markdown("**🤖 AI-Powered Analysis**")
-    st.caption("Advanced agents provide intelligent insights into your portfolio")
-
-with feature2:
-    st.markdown("**📊 Beautiful Visualizations**")
-    st.caption("Interactive charts and comprehensive data views")
-
-with feature3:
-    st.markdown("**🔐 Comprehensive Audits**")
-    st.caption("Automated risk detection and compliance checking")
-
-st.divider()
-
-st.markdown("### 📖 How It Works")
-
-with st.expander("🔍 Query Agent - Ask Natural Questions"):
-    st.markdown("""
-    The Query Agent lets you ask free-form questions about your project portfolio:
-    - **Natural Language**: Ask in your own words
-    - **Verified Evidence**: Every answer is backed by data
-    - **Visual Insights**: Generate charts automatically
-    - **Citation Trail**: See exactly how the answer was derived
-    """)
-
-with st.expander("🔐 Audit Agent - Autonomous Risk Detection"):
-    st.markdown("""
-    Define an audit goal and let the agent create its own verification plan:
-    - **Goal-Driven**: You set the audit objective
-    - **Independent Execution**: Agent creates and runs checks
-    - **Risk Ranking**: Findings are prioritized by importance
-    - **Detailed Reports**: Comprehensive audit documentation
-    """)
-
-with st.expander("📋 Review Board - Multi-Agent Prioritization"):
-    st.markdown("""
-    Let finance, delivery, and equity specialists work together:
-    - **Budget Envelope**: Set your available funding
-    - **Multi-Specialist**: Finance, delivery, and equity agents
-    - **Collaborative**: All agents reach consensus
-    - **Project Ranking**: Get prioritized recommendations
-    """)
+render_footer()

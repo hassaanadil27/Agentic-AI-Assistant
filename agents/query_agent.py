@@ -9,6 +9,33 @@ from agents.llm_provider import DemoProvider, LLMProvider, extract_json_object
 from tools.query_tools import aggregate_projects, filter_projects, get_project
 from tools.ranking_tools import rank_funding_candidates
 
+# ---------------------------------------------------------------------------
+# Status synonym table
+# Maps common plain-English words to the exact status values in the dataset.
+# Order matters: longer / more-specific phrases should come first so that
+# "not started" is matched before "started".
+# ---------------------------------------------------------------------------
+STATUS_SYNONYMS: dict[str, str] = {
+    "not started": "Not Started",
+    "unstarted": "Not Started",
+    "pending": "Not Started",
+    "upcoming": "Not Started",
+    "not begun": "Not Started",
+    "in progress": "In Progress",
+    "in-progress": "In Progress",
+    "ongoing": "In Progress",
+    "underway": "In Progress",
+    "running": "In Progress",
+    "active": "In Progress",
+    "started": "In Progress",
+    "completed": "Completed",
+    "complete": "Completed",
+    "done": "Completed",
+    "finished": "Completed",
+    "delivered": "Completed",
+    "closed": "Completed",
+}
+
 try:
     from tools.query_tools import group_projects
 except ImportError:  # Backward compatibility for partially updated deployments.
@@ -74,8 +101,16 @@ class QueryAgent:
                     "You are the Track A BSDI Query Agent. Use tools before answering any numerical/project question. "
                     "Return exactly one JSON object: {\"action\":\"call_tool\",\"tool\":name,\"arguments\":{...}} "
                     "or {\"action\":\"final_answer\",\"content\":answer}. Cite filters, counts and IDs from tool results; "
-                    "never invent data. Dataset vocabulary: water means category PHE. For 'most expensive', sort_by=cost_m and descending=true. "
-                    "For 'which district/category has most', use group_projects. Available tools: " + tool_help,
+                    "never invent data. "
+                    "Dataset vocabulary: water means category PHE. "
+                    "Status synonyms — always map to these exact values: "
+                    "pending/unstarted/upcoming/not-started → 'Not Started'; "
+                    "done/finished/complete/completed/delivered/closed → 'Completed'; "
+                    "ongoing/active/underway/running/in-progress → 'In Progress'. "
+                    "For 'most expensive', sort_by=cost_m and descending=true. "
+                    "For 'which district/category has most', use group_projects. "
+                    "Always give a friendly natural-language final_answer, not raw JSON or debug text. "
+                    "Available tools: " + tool_help,
                     messages,
                 )
             except Exception as exc:
@@ -165,7 +200,16 @@ class QueryAgent:
         statuses = {str(v).casefold(): str(v) for v in df["status"].dropna().unique()}
         category = next((v for k, v in categories.items() if k in q), None)
         district = next((v for k, v in districts.items() if k in q), None)
-        status = next((v for k, v in statuses.items() if k in q), None)
+
+        # --- Status resolution: synonym table first, then exact dataset values ---
+        status: str | None = None
+        for synonym, canonical in STATUS_SYNONYMS.items():
+            if synonym in q:
+                status = canonical
+                break
+        if status is None:
+            status = next((v for k, v in statuses.items() if k in q), None)
+
         filters = {k: v for k, v in {"district": district, "category": category, "status": status}.items() if v}
 
         id_match = re.search(r"[A-Z]{2,5}-\d{4}-P\d", question, re.I)
@@ -202,8 +246,29 @@ class QueryAgent:
         args = {"operation": operation, **filters}; trace.append(f"ACT: aggregate_projects({json.dumps(args)})")
         result = aggregate_projects(**args); data = result.model_dump()
         trace.extend([f"OBSERVE: {json.dumps(data)}", "STOP: deterministic grounded answer produced"])
-        label = "PKR millions" if operation == "total_cost" else "projects"
-        return QueryAnswer(f"Result: {result.value:,.2f} {label}. Filters: {result.filters_applied or 'none'}. Matching rows: {result.count}.", trace)
+
+        # Build a friendly natural-language answer instead of raw internal debug text.
+        filter_parts = []
+        if status:
+            filter_parts.append(f"**{status}**")
+        if category:
+            filter_parts.append(f"in category **{category}**")
+        if district:
+            filter_parts.append(f"in district **{district}**")
+        filter_clause = " ".join(filter_parts) if filter_parts else "in the portfolio"
+
+        if operation == "count":
+            count_val = int(result.value) if result.value is not None else 0
+            return QueryAnswer(
+                f"There are **{count_val:,}** {filter_clause} project(s).",
+                trace,
+            )
+        else:
+            return QueryAnswer(
+                f"The total budget for {filter_clause} projects is **PKR {result.value:,.2f} million** "
+                f"(PKR millions; {result.count:,} project(s)).",
+                trace,
+            )
 
     @staticmethod
     def _sanitize_arguments(tool_name: str, arguments: dict, question: str) -> dict:
