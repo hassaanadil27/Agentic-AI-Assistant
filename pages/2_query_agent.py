@@ -1,18 +1,18 @@
-"""Track A - Query Agent Page."""
+"""Professional AI investigation workspace for portfolio questions."""
 from __future__ import annotations
+
 import logging
 from datetime import datetime
-import streamlit as st
-import pandas as pd
-from dotenv import load_dotenv
 from pathlib import Path
 
+import pandas as pd
+import streamlit as st
+from dotenv import load_dotenv
+
 from agents.llm_provider import get_provider
-from models.messages import AgentReport
-from tools.chat_context import build_chat_context
-from ui.api_client import ask_query, get_portfolio
+from ui.api_client import ask_query
 from ui.chat_store import load_chats, new_chat, save_chats, title_from_question
-from ui.charts import create_chart_spec, render_figure, should_chart
+from ui.charts import create_chart_spec, render_figure
 from ui.pdf_reports import charts_report, project_report
 from ui.styles import APP_CSS
 
@@ -21,18 +21,16 @@ if not (_env_path.exists() and "x-rapidapi-key" in _env_path.read_text(encoding=
     load_dotenv(_env_path)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-
 st.markdown(APP_CSS, unsafe_allow_html=True)
 
-def init_state():
+
+def init_state() -> None:
     if "chats" not in st.session_state:
         st.session_state.chats = load_chats() or [new_chat()]
         st.session_state.active_chat_id = st.session_state.chats[0]["id"]
-    if "show_history" not in st.session_state:
-        st.session_state.show_history = False
 
 
-def active_chat():
+def active_chat() -> dict:
     for item in st.session_state.chats:
         if item["id"] == st.session_state.active_chat_id:
             return item
@@ -42,12 +40,17 @@ def active_chat():
     return item
 
 
-def persist():
+def persist() -> None:
     save_chats(st.session_state.chats)
 
 
+def clear_chat(chat: dict) -> None:
+    chat.update(messages=[], charts=[], title="New conversation")
+    st.session_state.pop("last_query_trace", None)
+    persist()
+
+
 def render_activity(lines: list[str]) -> None:
-    """Show technical execution logs as a readable progress timeline."""
     rows = []
     for number, raw in enumerate(lines, 1):
         agent, message = "System", raw
@@ -62,19 +65,11 @@ def render_activity(lines: list[str]) -> None:
             description = f"Used {action.replace('_', ' ').title()} to retrieve verified information."
         elif stage == "OBSERVE" and description.startswith(("{", "[")):
             description = "The data tool returned verified evidence for this step."
-        description = description.replace("_", " ")
-        rows.append({"Step": number, "Agent": agent, "Stage": stage.title(), "Details": description})
+        rows.append({"Step": number, "Agent": agent, "Stage": stage.title(), "Details": description.replace("_", " ")})
     if rows:
         st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
     else:
-        st.info("No activity recorded yet.")
-
-
-def render_chart(spec):
-    options = ["bar", "pie", "line", "scatter", "histogram"]
-    kind = st.selectbox("Chart type", options, index=options.index(spec.get("type", "bar")), key=f"type-{spec['id']}")
-    st.plotly_chart(render_figure(spec, kind), width="stretch", config={"displaylogo": False, "responsive": True})
-    st.download_button("⬇ Download chart data", pd.DataFrame(spec["data"]).to_csv(index=False), f"{spec['id']}.csv", "text/csv", key=f"csv-{spec['id']}")
+        st.info("No execution details are available for this response.")
 
 
 init_state()
@@ -84,131 +79,192 @@ provider_label = {
     "RapidAPIProvider": "RapidAPI",
     "GrokProvider": "Grok",
 }.get(provider.__class__.__name__, "Demo")
-
 chat = active_chat()
 
-# Sidebar with chat history
 with st.sidebar:
-    st.markdown('<div class="brand">🔍 Query Agent</div>', unsafe_allow_html=True)
-    
-    if st.button("➕ New Chat", type="primary", width="stretch"):
+    st.markdown('<div class="brand">Query Intelligence</div>', unsafe_allow_html=True)
+    if st.button("New investigation", type="primary", icon=":material/add:", width="stretch"):
         item = new_chat()
         st.session_state.chats.insert(0, item)
         st.session_state.active_chat_id = item["id"]
         persist()
         st.rerun()
-    
-    st.markdown("**Chat History**")
+
+    st.markdown('<div class="nav-label">Recent investigations</div>', unsafe_allow_html=True)
     for item in st.session_state.chats[:10]:
-        label = ("📍 " if item["id"] == chat["id"] else "💬 ") + item["title"][:30]
-        if st.button(label, key=f"open-{item['id']}", width="stretch"):
+        active = item["id"] == chat["id"]
+        label = ("Current: " if active else "") + item["title"][:34]
+        if st.button(label, key=f"open-{item['id']}", icon=":material/chat_bubble:", width="stretch"):
             st.session_state.active_chat_id = item["id"]
             st.rerun()
-    
-    st.divider()
-    
-    # Tools Section
-    st.markdown("**📊 Tools**")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📈 Chart", disabled=not bool(chat["messages"]), width="stretch"):
-            try:
-                questions = [m["content"] for m in chat["messages"] if m["role"] == "user"]
-                if questions:
-                    chat["charts"].append(create_chart_spec(questions[-1]))
-                    persist()
-                    st.rerun()
-            except Exception:
-                logging.exception("Chart generation failed")
-    with col2:
-        if st.button("📄 PDF", disabled=not bool(chat["messages"]), width="stretch"):
-            st.info("PDF download ready in main area")
-    
-    st.divider()
-    if st.button("🗑️ Clear Chat", disabled=not bool(chat["messages"] or chat["charts"]), width="stretch"):
-        chat.update(messages=[], charts=[], title="New conversation")
-        persist()
+
+    st.markdown('<div class="nav-label">Conversation controls</div>', unsafe_allow_html=True)
+    if st.button(
+        "Clear conversation",
+        key="sidebar-clear-chat",
+        icon=":material/delete_sweep:",
+        disabled=not bool(chat["messages"] or chat["charts"]),
+        width="stretch",
+    ):
+        clear_chat(chat)
         st.rerun()
 
-# Main Content
 st.markdown(
-    '<div class="hero"><h1>🔍 Query Agent</h1><p>Ask natural-language questions about your portfolio. The agent plans, verifies, and cites its evidence.</p></div>',
-    unsafe_allow_html=True
+    '<div class="hero"><h1>AI-Powered Query & Investigation</h1>'
+    '<p>Ask a portfolio question, review the evidence-backed response, and inspect a matching visualization alongside the conversation.</p></div>',
+    unsafe_allow_html=True,
 )
 
+status_left, status_right = st.columns([1, 3])
 if is_demo:
-    st.info("🟠 Demo Mode Active - AI answers unavailable. Data queries work normally.")
+    status_left.warning("Demo provider", icon=":material/science:")
 else:
-    st.caption(f"🔌 Connected to {provider_label} · {provider.model_name}")
+    status_left.success(f"{provider_label} connected", icon=":material/check_circle:")
+status_right.caption(
+    "Responses use the loaded BSDI portfolio. Visual evidence is generated locally from the same dataset."
+)
 
-# Starter Suggestions
 if not chat["messages"]:
     with st.container(key="starter_actions"):
-        st.markdown('<div class="starter-title">Start an analysis</div><div class="starter-copy">Choose a suggestion or ask your own question below</div>', unsafe_allow_html=True)
-        suggestion_col1, suggestion_col2, suggestion_col3 = st.columns(3)
-        
+        st.markdown(
+            '<div class="starter-title">Begin an investigation</div>'
+            '<div class="starter-copy">Choose a common analysis or write a question in the conversation panel.</div>',
+            unsafe_allow_html=True,
+        )
         suggestions = [
-            ("📍 District Budgets", "Compare portfolio budgets by district"),
-            ("📊 Status Overview", "Show percentage of projects by status"),
-            ("⚠️ Risk Analysis", "Which projects have the highest delivery risk?"),
+            ("Compare district budgets", "Compare portfolio budgets by district"),
+            ("Review delivery status", "Show the percentage of projects by delivery status"),
+            ("Check contractor coverage", "How many projects are missing contractor information?"),
         ]
-        
-        for col, (emoji_label, question) in zip([suggestion_col1, suggestion_col2, suggestion_col3], suggestions):
-            if col.button(emoji_label, key=f"suggest-{emoji_label}", width="stretch"):
+        suggestion_columns = st.columns(3)
+        for column, (label, question) in zip(suggestion_columns, suggestions):
+            if column.button(label, key=f"suggest-{label}", icon=":material/bolt:", width="stretch"):
                 st.session_state.suggested_prompt = question
                 st.rerun()
 
-# Display chat messages
-for message in chat["messages"]:
-    with st.chat_message(message["role"], avatar="👤" if message["role"] == "user" else "🤖"):
-        st.markdown(message["content"])
-        if message.get("timestamp"):
-            st.caption(f"⏱️ {message['timestamp']}")
+st.markdown('<div class="section-kicker">Investigation workspace</div>', unsafe_allow_html=True)
+conversation_col, analysis_col = st.columns([1.18, .82], gap="medium")
 
-# Display charts
-for spec in chat.get("charts", []):
-    with st.chat_message("assistant", avatar="📊"):
-        st.markdown(f"**{spec['title']}**")
-        render_chart(spec)
+with conversation_col:
+    with st.container(border=True, key="query_conversation"):
+        st.markdown(
+            '<div class="query-panel-heading">Conversation <span>Evidence grounded</span></div>',
+            unsafe_allow_html=True,
+        )
+        if not chat["messages"]:
+            st.markdown(
+                '<div class="empty-analysis">Ask a clear question about districts, budgets, delivery, agencies, contractors, or project status.</div>',
+                unsafe_allow_html=True,
+            )
+        for message in chat["messages"]:
+            avatar = ":material/person:" if message["role"] == "user" else ":material/psychology:"
+            with st.chat_message(message["role"], avatar=avatar):
+                st.markdown(message["content"])
+                if message.get("timestamp"):
+                    st.caption(message["timestamp"])
 
-# Chat input
-typed_prompt = st.chat_input("Ask about BSDI projects…", key="chat_input")
-suggested = st.session_state.get("suggested_prompt", "")
-prompt = suggested or typed_prompt
+        typed_prompt = st.chat_input("Ask a question about the BSDI portfolio...", key="query_chat_input")
 
+with analysis_col:
+    with st.container(border=True, key="query_analysis"):
+        st.markdown(
+            '<div class="query-panel-heading">Visual evidence <span>Live dataset</span></div>',
+            unsafe_allow_html=True,
+        )
+        charts = chat.get("charts", [])
+        selected_chart = None
+        if charts:
+            chart_options = list(range(len(charts) - 1, -1, -1))
+            selected_index = st.selectbox(
+                "Visualization",
+                chart_options,
+                format_func=lambda index: charts[index]["question"][:62],
+                key=f"chart-choice-{chat['id']}",
+            )
+            selected_chart = charts[selected_index]
+            chart_types = ["bar", "pie", "line", "scatter", "histogram"]
+            default_type = selected_chart.get("type", "bar")
+            chart_type = st.segmented_control(
+                "Chart type",
+                chart_types,
+                default=default_type if default_type in chart_types else "bar",
+                key=f"chart-type-{selected_chart['id']}",
+            ) or default_type
+            st.plotly_chart(
+                render_figure(selected_chart, chart_type),
+                width="stretch",
+                config={"displaylogo": False, "responsive": True},
+            )
+            st.caption(f"Generated for: {selected_chart['question']}")
+        else:
+            st.markdown(
+                '<div class="empty-analysis">A question-aware graph will appear here after your first response.</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown('<div class="query-panel-heading">Exports <span>Ready to share</span></div>', unsafe_allow_html=True)
+        export_left, export_right = st.columns(2)
+        if chat["messages"]:
+            export_left.download_button(
+                "Conversation PDF",
+                project_report(chat),
+                file_name="bsdi-investigation.pdf",
+                mime="application/pdf",
+                icon=":material/picture_as_pdf:",
+                width="stretch",
+            )
+        else:
+            export_left.button(
+                "Conversation PDF",
+                icon=":material/picture_as_pdf:",
+                disabled=True,
+                width="stretch",
+            )
+        if selected_chart:
+            export_right.download_button(
+                "Chart data",
+                pd.DataFrame(selected_chart["data"]).to_csv(index=False),
+                file_name=f"{selected_chart['id']}.csv",
+                mime="text/csv",
+                icon=":material/download:",
+                width="stretch",
+            )
+            st.download_button(
+                "All visual evidence PDF",
+                charts_report(chat),
+                file_name="bsdi-visual-evidence.pdf",
+                mime="application/pdf",
+                icon=":material/analytics:",
+                width="stretch",
+            )
+        else:
+            export_right.button("Chart data", icon=":material/download:", disabled=True, width="stretch")
+
+suggested_prompt = st.session_state.pop("suggested_prompt", "")
+prompt = suggested_prompt or typed_prompt
 if prompt:
-    st.session_state.suggested_prompt = ""
-    chat["messages"].append({"role": "user", "content": prompt, "timestamp": datetime.now().strftime("%H:%M")})
+    timestamp = datetime.now().strftime("%H:%M")
+    chat["messages"].append({"role": "user", "content": prompt, "timestamp": timestamp})
     if chat["title"] == "New conversation":
         chat["title"] = title_from_question(prompt)
     persist()
-    
-    with st.chat_message("user", avatar="👤"):
-        st.markdown(prompt)
-    
-    with st.chat_message("assistant", avatar="🤖"):
-        with st.spinner("Thinking…"):
-            try:
-                answer, trace = ask_query(prompt, chat["messages"][:-1])
-                st.session_state.last_query_trace = trace
-            except Exception as exc:
-                logging.exception("Query failed")
-                answer = "❌ Something went wrong. Please try again."
-            st.markdown(answer)
-    
-    chat["messages"].append({"role": "assistant", "content": answer, "timestamp": datetime.now().strftime("%H:%M")})
-    
-    if should_chart(prompt):
-        try:
-            chat["charts"].append(create_chart_spec(prompt))
-        except Exception:
-            logging.exception("Chart generation failed")
-    
+
+    try:
+        with st.spinner("Investigating the portfolio and preparing visual evidence..."):
+            answer, trace = ask_query(prompt, chat["messages"][:-1])
+            chart = create_chart_spec(prompt)
+        st.session_state.last_query_trace = trace
+        chat["charts"].append(chart)
+    except Exception as exc:
+        logging.exception("Query failed")
+        answer = f"The investigation could not be completed: {exc}"
+    chat["messages"].append(
+        {"role": "assistant", "content": answer, "timestamp": datetime.now().strftime("%H:%M")}
+    )
     persist()
     st.rerun()
 
-# Show trace if available
 if "last_query_trace" in st.session_state:
-    with st.expander("📋 View Analysis Process"):
-        st.caption("How the agent verified this answer")
+    with st.expander("View investigation process"):
+        st.caption("How the agent planned, retrieved, and verified this answer")
         render_activity(st.session_state.last_query_trace)

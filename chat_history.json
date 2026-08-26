@@ -13,6 +13,36 @@
         "role": "assistant",
         "content": "Result: 4,083.00 projects. Filters: none. Matching rows: 4083.",
         "timestamp": "11:46"
+      },
+      {
+        "role": "user",
+        "content": "hello",
+        "timestamp": "16:55"
+      },
+      {
+        "role": "assistant",
+        "content": "Hi! I’m the BSDI Project AI Agent. I can compare project allocations, budgets, sectors, districts, statuses, delivery risks, and individual projects.",
+        "timestamp": "16:55"
+      },
+      {
+        "role": "user",
+        "content": "which sector has the highest allocations",
+        "timestamp": "16:55"
+      },
+      {
+        "role": "assistant",
+        "content": "Highest ranked sectors: PHE: PKR 14,350.38M; Education: PKR 9,839.79M; Other: PKR 8,119.58M; Road: PKR 6,270.96M; Health: PKR 3,050.95M",
+        "timestamp": "16:55"
+      },
+      {
+        "role": "user",
+        "content": "which project should we start first",
+        "timestamp": "17:16"
+      },
+      {
+        "role": "assistant",
+        "content": "Start **BARS-0016-P3** first: Installation of Solar Street lights at Ibrahim khan Bazar, Barshore Bazar and 06 other locations across district Barshore (Barshore, Municipal; PKR 18.00M). It is the highest-ranked Not Started project with an overall score of 63.97/100 (finance 69.69, delivery 55.00, equity 67.75).",
+        "timestamp": "17:16"
       }
     ],
     "charts": [

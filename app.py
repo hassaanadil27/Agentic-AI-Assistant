@@ -1,122 +1,93 @@
-"""BSDI Project AI Agent — Multi-page Streamlit application."""
+"""BSDI Project AI Agent - multipage Streamlit application."""
 from __future__ import annotations
 
 import logging
 from pathlib import Path
+
 import streamlit as st
 from dotenv import load_dotenv
 
+from ui.api_client import get_portfolio
 from ui.styles import APP_CSS
 
 _env_path = Path(__file__).resolve().parent / ".env"
-# RapidAPI's copied Python example is not dotenv syntax. The provider can
-# safely extract its key, while normal key=value files still use dotenv.
 if not (_env_path.exists() and "x-rapidapi-key" in _env_path.read_text(encoding="utf-8").casefold()):
     load_dotenv(_env_path)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 st.set_page_config(
-    page_title="BSDI Project AI Agent",
-    page_icon="📊",
+    page_title="BSDI Command Center",
+    page_icon=":material/monitoring:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 st.markdown(APP_CSS, unsafe_allow_html=True)
 
-
-# Main Content
 with st.sidebar:
-    st.markdown('<div class="brand">🏢 BSDI AI Platform</div>', unsafe_allow_html=True)
-    st.divider()
-    st.caption("📍 Home")
+    st.markdown('<div class="brand">BSDI Command Center</div>', unsafe_allow_html=True)
+    st.markdown('<div class="nav-label">Portfolio intelligence</div>', unsafe_allow_html=True)
+    st.caption("Live oversight and agent-assisted review")
 
 st.markdown(
-    '<div class="hero"><h1>📊 Welcome to BSDI AI Agent</h1><p>An intelligent platform for portfolio analysis, audit, and decision support</p></div>',
-    unsafe_allow_html=True
+    '<div class="hero"><h1>Portfolio Command Center</h1>'
+    '<p>Monitor delivery, investigate risk, and coordinate evidence-based project decisions from one operational workspace.</p></div>',
+    unsafe_allow_html=True,
 )
 
+try:
+    metadata, _, _ = get_portfolio()
+except Exception as exc:
+    st.error(f"Portfolio service unavailable: {exc}")
+    st.info("The interface is ready, but live metrics require the FastAPI service.")
+    st.stop()
+
+status_counts = metadata.status_counts
+total = metadata.total_projects
+completed = int(status_counts.get("Completed", 0))
+in_progress = int(status_counts.get("In Progress", 0))
+
+st.markdown('<div class="section-kicker">Portfolio at a glance</div>', unsafe_allow_html=True)
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Projects", "2,847", "+142")
-col2.metric("Budget", "PKR 850M", "+12.5%")
-col3.metric("Completed", "1,243", "43.6%")
-col4.metric("In Progress", "1,341", "47.1%")
+col1.metric("Total projects", f"{total:,}", f"{metadata.districts} districts", delta_color="off")
+col2.metric(
+    "Portfolio value",
+    f"PKR {metadata.total_portfolio_m:,.1f}M",
+    f"{metadata.categories} categories",
+    delta_color="off",
+)
+col3.metric("Completed", f"{completed:,}", f"{completed / total:.1%}" if total else "0%")
+col4.metric("In progress", f"{in_progress:,}", f"{in_progress / total:.1%}" if total else "0%")
 
-st.divider()
-
-st.markdown("### 🚀 Quick Start")
-
+st.markdown('<div class="section-kicker">Operational workspaces</div>', unsafe_allow_html=True)
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     with st.container(border=True):
-        st.markdown("#### 🏠 Dashboard")
-        st.caption("View portfolio overview and key metrics")
-        st.page_link("pages/1_dashboard.py", label="Open Dashboard", icon="🏠", width="stretch")
+        st.markdown("#### Portfolio dashboard")
+        st.caption("Compare status, budgets, and district performance.")
+        st.page_link("pages/1_dashboard.py", label="Open dashboard", icon=":material/analytics:", width="stretch")
 
 with col2:
     with st.container(border=True):
-        st.markdown("#### 🔍 Query Agent")
-        st.caption("Ask natural-language questions about your projects")
-        st.page_link("pages/2_query_agent.py", label="Open Query Agent", icon="🔍", width="stretch")
+        st.markdown("#### Query agent")
+        st.caption("Ask questions and trace every supporting data step.")
+        st.page_link("pages/2_query_agent.py", label="Start analysis", icon=":material/search:", width="stretch")
 
 with col3:
     with st.container(border=True):
-        st.markdown("#### 🔐 Audit Agent")
-        st.caption("Run autonomous audits to find portfolio risks")
-        st.page_link("pages/3_audit_agent.py", label="Open Audit Agent", icon="🔐", width="stretch")
+        st.markdown("#### Audit agent")
+        st.caption("Surface delivery, finance, and data-quality risks.")
+        st.page_link("pages/3_audit_agent.py", label="Run audit", icon=":material/policy:", width="stretch")
 
 with col4:
     with st.container(border=True):
-        st.markdown("#### 📋 Review Board")
-        st.caption("Multi-agent project prioritization system")
-        st.page_link("pages/4_review_board.py", label="Open Review Board", icon="📋", width="stretch")
+        st.markdown("#### Review board")
+        st.caption("Prioritize investments with specialist agent evidence.")
+        st.page_link("pages/4_review_board.py", label="Open board", icon=":material/groups:", width="stretch")
 
-st.divider()
-
-st.markdown("### 📚 Features")
-
-feature1, feature2, feature3 = st.columns(3)
-
-with feature1:
-    st.markdown("**🤖 AI-Powered Analysis**")
-    st.caption("Advanced agents provide intelligent insights into your portfolio")
-
-with feature2:
-    st.markdown("**📊 Beautiful Visualizations**")
-    st.caption("Interactive charts and comprehensive data views")
-
-with feature3:
-    st.markdown("**🔐 Comprehensive Audits**")
-    st.caption("Automated risk detection and compliance checking")
-
-st.divider()
-
-st.markdown("### 📖 How It Works")
-
-with st.expander("🔍 Query Agent - Ask Natural Questions"):
-    st.markdown("""
-    The Query Agent lets you ask free-form questions about your project portfolio:
-    - **Natural Language**: Ask in your own words
-    - **Verified Evidence**: Every answer is backed by data
-    - **Visual Insights**: Generate charts automatically
-    - **Citation Trail**: See exactly how the answer was derived
-    """)
-
-with st.expander("🔐 Audit Agent - Autonomous Risk Detection"):
-    st.markdown("""
-    Define an audit goal and let the agent create its own verification plan:
-    - **Goal-Driven**: You set the audit objective
-    - **Independent Execution**: Agent creates and runs checks
-    - **Risk Ranking**: Findings are prioritized by importance
-    - **Detailed Reports**: Comprehensive audit documentation
-    """)
-
-with st.expander("📋 Review Board - Multi-Agent Prioritization"):
-    st.markdown("""
-    Let finance, delivery, and equity specialists work together:
-    - **Budget Envelope**: Set your available funding
-    - **Multi-Specialist**: Finance, delivery, and equity agents
-    - **Collaborative**: All agents reach consensus
-    - **Project Ranking**: Get prioritized recommendations
-    """)
+st.markdown('<div class="section-kicker">System status</div>', unsafe_allow_html=True)
+status_col, data_col, model_col = st.columns(3)
+status_col.success("Portfolio API connected", icon=":material/check_circle:")
+data_col.info(f"{total:,} project records loaded", icon=":material/database:")
+model_col.warning("Agent responses follow the configured provider", icon=":material/smart_toy:")

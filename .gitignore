@@ -6,5 +6,6 @@ logs/*.log
 run_logs/*.json
 venv/
 .venv/
-.streamlit/
+.streamlit/*
+!.streamlit/config.toml
 *.egg-info/
