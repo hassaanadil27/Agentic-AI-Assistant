@@ -1,93 +1,80 @@
-"""BSDI Project AI Agent - multipage Streamlit application."""
+"""Balochistan Development Intelligence Platform landing page."""
 from __future__ import annotations
 
-import logging
 from pathlib import Path
-
 import streamlit as st
 from dotenv import load_dotenv
 
+_env = Path(__file__).resolve().parent / ".env"
+if _env.exists():
+    load_dotenv(_env, override=True)
+
 from ui.api_client import get_portfolio
+from ui.components import render_footer, render_header, render_section, render_sidebar_info, render_stat, render_workflow_card
 from ui.styles import APP_CSS
 
-_env_path = Path(__file__).resolve().parent / ".env"
-if not (_env_path.exists() and "x-rapidapi-key" in _env_path.read_text(encoding="utf-8").casefold()):
-    load_dotenv(_env_path)
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-
-st.set_page_config(
-    page_title="BSDI Command Center",
-    page_icon=":material/monitoring:",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+st.set_page_config(page_title="Balochistan Development Intelligence", page_icon="🏛️", layout="wide", initial_sidebar_state="expanded")
 st.markdown(APP_CSS, unsafe_allow_html=True)
-
-with st.sidebar:
-    st.markdown('<div class="brand">BSDI Command Center</div>', unsafe_allow_html=True)
-    st.markdown('<div class="nav-label">Portfolio intelligence</div>', unsafe_allow_html=True)
-    st.caption("Live oversight and agent-assisted review")
-
-st.markdown(
-    '<div class="hero"><h1>Portfolio Command Center</h1>'
-    '<p>Monitor delivery, investigate risk, and coordinate evidence-based project decisions from one operational workspace.</p></div>',
-    unsafe_allow_html=True,
-)
+render_sidebar_info()
 
 try:
     metadata, _, _ = get_portfolio()
 except Exception as exc:
-    st.error(f"Portfolio service unavailable: {exc}")
-    st.info("The interface is ready, but live metrics require the FastAPI service.")
+    st.error("The portfolio could not be loaded. Confirm that the backend or local dataset is available.")
+    with st.expander("Technical details"):
+        st.code(str(exc))
     st.stop()
 
-status_counts = metadata.status_counts
 total = metadata.total_projects
-completed = int(status_counts.get("Completed", 0))
-in_progress = int(status_counts.get("In Progress", 0))
+completed = int(metadata.status_counts.get("Completed", 0))
+in_progress = int(metadata.status_counts.get("In Progress", 0))
+not_started = int(metadata.status_counts.get("Not Started", 0))
 
-st.markdown('<div class="section-kicker">Portfolio at a glance</div>', unsafe_allow_html=True)
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total projects", f"{total:,}", f"{metadata.districts} districts", delta_color="off")
-col2.metric(
-    "Portfolio value",
-    f"PKR {metadata.total_portfolio_m:,.1f}M",
-    f"{metadata.categories} categories",
-    delta_color="off",
+render_header(
+    "Balochistan Development Intelligence",
+    "A single evidence-led workspace to explore the development portfolio, investigate delivery risk, and make defensible funding decisions.",
+    "Portfolio ready",
+    "green",
 )
-col3.metric("Completed", f"{completed:,}", f"{completed / total:.1%}" if total else "0%")
-col4.metric("In progress", f"{in_progress:,}", f"{in_progress / total:.1%}" if total else "0%")
 
-st.markdown('<div class="section-kicker">Operational workspaces</div>', unsafe_allow_html=True)
-col1, col2, col3, col4 = st.columns(4)
+cols = st.columns(4)
+metrics = [
+    ("Total schemes", f"{total:,}", f"{metadata.districts} districts · {metadata.categories} sectors", "Portfolio", "blue"),
+    ("Portfolio value", f"PKR {metadata.total_portfolio_m / 1000:,.1f}B", f"PKR {metadata.total_portfolio_m:,.0f} million", "Allocation", "blue"),
+    ("Completed", f"{completed:,}", f"{completed / max(total, 1):.1%} of all schemes", "Delivered", "green"),
+    ("Needs action", f"{not_started:,}", f"Plus {in_progress:,} schemes in progress", "Not started", "amber"),
+]
+for column, values in zip(cols, metrics):
+    with column:
+        render_stat(*values)
 
-with col1:
-    with st.container(border=True):
-        st.markdown("#### Portfolio dashboard")
-        st.caption("Compare status, budgets, and district performance.")
-        st.page_link("pages/1_dashboard.py", label="Open dashboard", icon=":material/analytics:", width="stretch")
+render_section("Choose your workflow", "Start with the question you need to answer; each workspace stays grounded in the same portfolio data.")
+cards = [
+    ("▦", "Explore the portfolio", "Filter schemes, compare delivery status, and inspect district or sector allocation.", "pages/1_Overview_and_Explorer.py", "Open explorer"),
+    ("✦", "Ask the AI assistant", "Use plain language for exact counts, costs, comparisons, and ranked project questions.", "pages/2_AI_Assistant.py", "Start a conversation"),
+    ("△", "Run a risk audit", "Scan for missing accountability fields, tender mismatches, delivery gaps, and cost outliers.", "pages/3_Risk_Audit.py", "Open risk audit"),
+    ("◎", "Allocate a budget", "Have Finance, Delivery, and Equity specialists build a budget-safe funding shortlist.", "pages/4_Budget_Review_Board.py", "Open review board"),
+]
+row_a = st.columns(2)
+row_b = st.columns(2)
+for column, (icon, title, copy, path, label) in zip([*row_a, *row_b], cards):
+    with column:
+        render_workflow_card(icon, title, copy)
+        st.page_link(path, label=f"{label}  →", width="stretch")
+        st.write("")
 
-with col2:
-    with st.container(border=True):
-        st.markdown("#### Query agent")
-        st.caption("Ask questions and trace every supporting data step.")
-        st.page_link("pages/2_query_agent.py", label="Start analysis", icon=":material/search:", width="stretch")
+render_section("Built for explainable decisions", "The model assists with planning and narrative; source-of-truth operations remain deterministic.")
+explain_cols = st.columns(3)
+explainers = [
+    ("01", "Calculated, not guessed", "Counts, sums, rankings, and budget limits are executed in Python against the Excel portfolio."),
+    ("02", "Traceable evidence", "Agent findings retain source tools, affected project IDs, and a public action trace."),
+    ("03", "Works without an API", "Offline demo mode still runs the real tools and dataset using a deterministic investigation plan."),
+]
+for column, (number, title, copy) in zip(explain_cols, explainers):
+    with column:
+        with st.container(border=True):
+            st.caption(number)
+            st.markdown(f"**{title}**")
+            st.caption(copy)
 
-with col3:
-    with st.container(border=True):
-        st.markdown("#### Audit agent")
-        st.caption("Surface delivery, finance, and data-quality risks.")
-        st.page_link("pages/3_audit_agent.py", label="Run audit", icon=":material/policy:", width="stretch")
-
-with col4:
-    with st.container(border=True):
-        st.markdown("#### Review board")
-        st.caption("Prioritize investments with specialist agent evidence.")
-        st.page_link("pages/4_review_board.py", label="Open board", icon=":material/groups:", width="stretch")
-
-st.markdown('<div class="section-kicker">System status</div>', unsafe_allow_html=True)
-status_col, data_col, model_col = st.columns(3)
-status_col.success("Portfolio API connected", icon=":material/check_circle:")
-data_col.info(f"{total:,} project records loaded", icon=":material/database:")
-model_col.warning("Agent responses follow the configured provider", icon=":material/smart_toy:")
+render_footer()
