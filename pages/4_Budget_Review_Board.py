@@ -15,7 +15,8 @@ if _env.exists():
 from models.messages import AgentReport, FinalReport
 from orchestration.state import load_latest_run
 from ui.api_client import run_review
-from ui.charts import render_allocation_waterfall, render_specialist_activity
+from ui.charts import render_allocation_waterfall
+import ui.charts as portfolio_charts
 from ui.components import render_empty_state, render_footer, render_header, render_section, render_sidebar_info, render_stat, render_trace, render_track_card
 from ui.pdf_reports import review_report_pdf
 from ui.styles import APP_CSS
@@ -112,7 +113,7 @@ else:
         chart_left, note_right = st.columns([1.4, .8])
         with chart_left:
             st.plotly_chart(render_allocation_waterfall(report.budget_available_m, report.total_recommended_m, report.remaining_budget_m), width="stretch", config={"displaylogo": False})
-            if specialists:
+            if specialists and hasattr(portfolio_charts, "render_specialist_activity"):
                 specialist_activity = [
                     {
                         "Track": name.replace(" Agent", ""),
@@ -121,7 +122,7 @@ else:
                     }
                     for name, specialist in specialists.items()
                 ]
-                st.plotly_chart(render_specialist_activity(specialist_activity), width="stretch", config={"displaylogo": False})
+                st.plotly_chart(portfolio_charts.render_specialist_activity(specialist_activity), width="stretch", config={"displaylogo": False})
         with note_right:
             st.markdown("#### Decision guardrails")
             st.markdown(
