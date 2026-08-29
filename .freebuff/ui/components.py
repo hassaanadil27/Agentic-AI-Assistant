@@ -130,7 +130,9 @@ def render_trace(lines: list[str]) -> None:
 def render_sidebar_info() -> None:
     provider, is_demo = get_provider()
     engine_name = {
-        "GeminiProvider": "Google Gemini",
+        "HuggingFaceProvider": "Hugging Face",
+        "RapidAPIProvider": "RapidAPI",
+        "GrokProvider": "xAI Grok",
     }.get(provider.__class__.__name__, "Local rule engine")
     mode = "Offline demo" if is_demo else "Connected AI"
     dot = "#f4b942" if is_demo else "#5ee0b3"

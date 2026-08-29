@@ -1,0 +1,20 @@
+[
+  {
+    "id": "cc71c50387064044b08a259a1bc080a3",
+    "title": "which sector has lowes budget",
+    "created_at": "2026-08-27T14:57:17.158690+00:00",
+    "messages": [
+      {
+        "role": "user",
+        "content": "which sector has lowes budget",
+        "timestamp": "19:57"
+      },
+      {
+        "role": "assistant",
+        "content": "There are **4,083** in the portfolio project(s).",
+        "timestamp": "19:57"
+      }
+    ],
+    "charts": []
+  }
+]

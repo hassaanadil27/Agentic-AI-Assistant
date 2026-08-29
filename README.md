@@ -128,7 +128,7 @@ pip install -r requirements.txt
 
 ## 9. Environment Variables
 
-Copy `.env.example` to `.env` and fill in your xAI API key:
+Copy `.env.example` to `.env` and fill in your Google Gemini API key:
 
 ```powershell
 copy .env.example .env
@@ -136,17 +136,16 @@ notepad .env
 ```
 
 ```env
-LLM_PROVIDER=grok
-XAI_API_KEY=xai-your-api-key-here
-XAI_MODEL=grok-4-latest
-XAI_BASE_URL=https://api.x.ai/v1/chat/completions
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=your-google-ai-api-key-here
+GEMINI_MODEL=gemini-3.6-flash
 DEMO_MODE=false
 ```
 
-Create an API key in the xAI Console at https://console.x.ai/. Keep it only in
-`.env`; never paste it into source code or commit it. If your chosen
-`XAI_MODEL` isn't reachable, the app automatically falls back to Demo Mode and
-shows the API error. Chat requires a working xAI key.
+Create an API key in Google AI Studio. Keep it only in `.env`; never paste it
+into source code or commit it. If your chosen `GEMINI_MODEL` isn't reachable,
+the app automatically falls back to Demo Mode and shows the API error. Chat
+requires a working Gemini key.
 
 ## 10. Running
 
@@ -261,14 +260,14 @@ python generate_transcripts.py
 ```
 
 Regenerates `transcripts/run_01.md`, `run_02.md`, `run_03.md` from real executions
-(three different funding envelopes: PKR 1B / 2B / 3B). Uses your configured LLM if
-`HF_TOKEN` is set (the legacy `HF_API_TOKEN` name is also accepted), otherwise Demo Mode — either way, all dataset numbers are
+(three different funding envelopes: PKR 1B / 2B / 3B). Uses your configured
+Gemini model when `GEMINI_API_KEY` is set; otherwise Demo Mode — either way, all dataset numbers are
 real, never fabricated.
 
 ## 20. Limitations
 
-- The Hugging Face free Inference API has rate limits and not all models are
-  hosted; Demo Mode is the reliable fallback for grading.
+- Gemini API quotas and model availability depend on your Google AI project;
+  Demo Mode is the reliable fallback for grading.
 - Equity findings are limited to what's measurable in this dataset (budget/project
   shares) — they are not an independent needs assessment.
 - Contractor normalization concatenates joint-contract firm names as-is rather than

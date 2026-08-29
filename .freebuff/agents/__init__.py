@@ -1,4 +1,4 @@
-from .llm_provider import get_provider, LLMProvider, GeminiProvider, DemoProvider
+from .llm_provider import get_provider, LLMProvider, GrokProvider, HuggingFaceProvider, RapidAPIProvider, DemoProvider
 from .query_agent import QueryAgent
 from .audit_agent import AuditAgent
 from .base_agent import BaseAgent, ToolSpec, AgentActivityLogger
@@ -8,7 +8,7 @@ from .equity_agent import EquityAgent
 from .coordinator_agent import CoordinatorAgent
 
 __all__ = [
-    "get_provider", "LLMProvider", "GeminiProvider", "DemoProvider",
+    "get_provider", "LLMProvider", "GrokProvider", "HuggingFaceProvider", "RapidAPIProvider", "DemoProvider",
     "QueryAgent", "AuditAgent",
     "BaseAgent", "ToolSpec", "AgentActivityLogger",
     "FinanceAgent", "DeliveryAgent", "EquityAgent", "CoordinatorAgent",

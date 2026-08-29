@@ -3,7 +3,7 @@ BaseAgent: implements the generic PLAN -> ACT -> OBSERVE -> REASON -> ... -> STO
 loop shared by every specialist agent.
 
 Two execution modes:
-  1. LLM mode (Gemini): the model is given a system prompt describing
+  1. LLM mode (Grok): the model is given a system prompt describing
      its role and available tools, and drives the loop itself by emitting
      JSON actions (call_tool / final_answer). Python executes each tool call.
   2. Demo mode: no LLM is called. Each agent instead runs its own fixed,

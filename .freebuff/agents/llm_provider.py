@@ -2,12 +2,15 @@
 LLM provider abstraction.
 
 Supports:
-  - Google Gemini generate-content API
+  - xAI Grok chat completions
+  - Hugging Face Inference API chat completions
+  - RapidAPI OPEN AI chat completions
   - Demo mode: deterministic, rule-based text generation, no API key required
 
 WHY A JSON-PROMPT TOOL-CALLING LOOP (viva note):
-The provider uses a deliberately portable JSON prompting protocol. We tell the
-model exactly which tools exist
+Most Hugging Face Inference API chat models do not expose native
+function/tool-calling the way the Anthropic or OpenAI APIs do. To still
+get genuine agentic tool use, we tell the model exactly which tools exist
 (name + JSON schema of arguments) in the system prompt and require it to
 reply with ONE JSON object per turn:
 
@@ -28,6 +31,8 @@ import json
 import logging
 import os
 import re
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -62,44 +67,50 @@ def _setting(name: str, default: Optional[str] = None) -> Optional[str]:
     return match.group(1).strip().strip('"\'') if match else default
 
 
-class GeminiProvider(LLMProvider):
-    """Client for Google's current ``google-genai`` SDK."""
+class GrokProvider(LLMProvider):
+    """Small dependency-free client for xAI's OpenAI-compatible API."""
 
-    def __init__(self, model_name: Optional[str] = None, api_key: Optional[str] = None, client: object | None = None):
-        self.model_name = model_name or _setting("GEMINI_MODEL", "gemini-3.6-flash")
-        self.api_key = api_key or _setting("GEMINI_API_KEY") or _setting("GOOGLE_API_KEY")
+    def __init__(
+        self,
+        model_name: Optional[str] = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+    ):
+        self.model_name = model_name or os.environ.get("XAI_MODEL", "grok-4-latest")
+        self.api_key = api_key or _setting("XAI_API_KEY")
+        self.base_url = (base_url or os.environ.get("XAI_BASE_URL", "https://api.x.ai/v1/chat/completions")).rstrip("/")
         if not self.api_key:
-            raise RuntimeError("GEMINI_API_KEY is not set. Add it to .env, or run with DEMO_MODE=true.")
-        if client is None:
-            from google import genai  # imported lazily
-            client = genai.Client(api_key=self.api_key)
-        self.client = client
+            raise RuntimeError("XAI_API_KEY is not set. Add it to .env, or run with DEMO_MODE=true.")
 
     def complete(self, system_prompt: str, messages: list[dict]) -> LLMResponse:
-        from google.genai import types
-        contents = [
-            types.Content(
-                role="model" if message.get("role") == "assistant" else "user",
-                parts=[types.Part.from_text(text=str(message.get("content", "")))],
-            )
-            for message in messages
-        ]
+        payload = json.dumps({
+            "model": self.model_name,
+            "messages": [{"role": "system", "content": system_prompt}] + messages,
+            "max_tokens": 900,
+            "temperature": 0.2,
+            "stream": False,
+        }).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        headers["Authorization"] = f"Bearer {self.api_key}"
+        request = urllib.request.Request(self.base_url, data=payload, headers=headers, method="POST")
         try:
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    max_output_tokens=900,
-                    temperature=0.2,
-                ),
-            )
-            if not response.text:
-                raise ValueError("Gemini returned no text.")
-            return LLMResponse(text=response.text, is_demo=False)
-        except Exception as exc:  # noqa: BLE001
-            logger.error("Gemini API call failed: %s", exc)
-            raise RuntimeError(f"Gemini API call failed: {exc}") from exc
+            with urllib.request.urlopen(request, timeout=90) as response:
+                result = json.loads(response.read().decode("utf-8"))
+            return LLMResponse(text=result["choices"][0]["message"]["content"], is_demo=False)
+        except urllib.error.HTTPError as exc:
+            try:
+                error_body = exc.read().decode("utf-8", errors="replace")[:1000]
+                error_data = json.loads(error_body)
+                detail = error_data.get("error", error_data)
+                if isinstance(detail, dict):
+                    detail = detail.get("message") or detail.get("code") or str(detail)
+            except Exception:  # noqa: BLE001 - retain the original HTTP failure
+                detail = exc.reason
+            logger.error("Grok API call failed (%s): %s", exc.code, detail)
+            raise RuntimeError(f"Grok API call failed (HTTP {exc.code}): {detail}") from exc
+        except (urllib.error.URLError, KeyError, ValueError) as exc:
+            logger.error("Grok API call failed: %s", exc)
+            raise RuntimeError(f"Grok API call failed: {exc}") from exc
 
 
 class HuggingFaceProvider(LLMProvider):
@@ -230,13 +241,21 @@ def get_provider() -> tuple[LLMProvider, bool]:
         configured_provider = (_setting("LLM_PROVIDER", "") or "").strip().lower()
         if configured_provider:
             provider_name = configured_provider
+        elif _rapidapi_key():
+            provider_name = "rapidapi"
+        elif os.environ.get("HF_TOKEN") or os.environ.get("HF_API_TOKEN"):
+            provider_name = "huggingface"
         else:
-            provider_name = "gemini"
+            provider_name = "grok"
 
-        if provider_name in {"gemini", "google", "google_genai"}:
-            return GeminiProvider(), False
+        if provider_name in {"huggingface", "hugging_face", "hf"}:
+            return HuggingFaceProvider(), False
+        if provider_name in {"rapidapi", "rapid_api", "rapid"}:
+            return RapidAPIProvider(), False
+        if provider_name in {"grok", "xai"}:
+            return GrokProvider(), False
         raise RuntimeError(
-            f"Unsupported LLM_PROVIDER={provider_name!r}; use 'gemini'."
+            f"Unsupported LLM_PROVIDER={provider_name!r}; use 'rapidapi', 'huggingface', 'grok', or 'xai'."
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("Failed to initialize LLM provider (%s) -> falling back to Demo Mode.", exc)

@@ -36,7 +36,7 @@ def render_transcript(run_number: int, budget_cap_m: float, mode_label: str) -> 
     lines = []
     lines.append(f"# Run {run_number:02d} — {mode_label}")
     lines.append("")
-    lines.append(f"**Mode:** {'Demo Mode (deterministic, rule-based reasoning over real tool results)' if is_demo else f'Live LLM mode (Grok model: {provider.model_name})'}")
+    lines.append(f"**Mode:** {'Demo Mode (deterministic, rule-based reasoning over real tool results)' if is_demo else f'Live LLM mode ({provider.model_name})'}")
     lines.append(f"**Funding envelope:** PKR {budget_cap_m:,.0f}M")
     lines.append(f"**Dataset:** {meta.total_projects} projects, PKR {meta.total_portfolio_m:,.1f}M total portfolio, {meta.districts} districts")
     lines.append("")

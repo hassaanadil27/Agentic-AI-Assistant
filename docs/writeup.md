@@ -29,13 +29,12 @@
 Every agent (`agents/base_agent.py`) implements a genuine
 **plan → act → observe → reason → … → stop** loop:
 
-- **LLM mode** (Hugging Face Inference API): the model is given a system
+- **LLM mode** (Google Gemini API): the model is given a system
   prompt describing its role and its tools, then drives the loop itself
   by emitting one JSON action per turn (`call_tool` or `final_answer`).
   Python executes each tool call and feeds the JSON result back. This is
-  necessary because most open Hugging Face chat models don't support
-  native function calling the way Anthropic/OpenAI APIs do — a
-  structured-JSON prompting protocol is the standard workaround.
+  A structured-JSON prompting protocol keeps the tool loop explicit and
+  portable while all calculations remain in Python.
 - **Demo Mode** (no API key required): each agent instead runs its own
   fixed, documented investigation plan — still calling the exact same
   real tools against the real dataset — and synthesizes findings with
