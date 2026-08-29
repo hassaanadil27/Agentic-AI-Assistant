@@ -85,6 +85,14 @@ class QueryAgent:
         # can fall through to the default unfiltered count.
         if self._asks_which_project_to_start(question):
             return self._rank_start_candidates(trace)
+        distinct_dimension = self._distinct_dimension_intent(question)
+        if distinct_dimension:
+            return self._answer_distinct_dimension(distinct_dimension, question, trace)
+        # Grouped superlatives are deterministic facts. Resolve them directly
+        # so wording such as "lowes projects" cannot be mistaken for a total.
+        grouped_extreme = self._grouped_extreme_intent(question)
+        if grouped_extreme:
+            return self._answer_grouped_extreme(*grouped_extreme, trace)
         if isinstance(self.provider, DemoProvider):
             return self._deterministic(question, trace)
         tool_help = (
@@ -154,6 +162,72 @@ class QueryAgent:
             )
         )
         return bool(project_reference and priority_language)
+
+    @staticmethod
+    def _grouped_extreme_intent(question: str) -> tuple[str, str, str] | None:
+        q = question.casefold()
+        dimension = "category" if any(term in q for term in ("sector", "category")) else "district" if "district" in q else None
+        if not dimension:
+            return None
+        direction = (
+            "lowest" if any(term in q for term in ("lowest", "lowes", "least", "fewest", "smallest"))
+            else "highest" if any(term in q for term in ("most", "highest", "largest", "top"))
+            else None
+        )
+        if not direction:
+            return None
+        operation = "total_cost" if any(term in q for term in ("allocation", "budget", "cost", "funding", "value")) else "count"
+        return dimension, direction, operation
+
+    @staticmethod
+    def _distinct_dimension_intent(question: str) -> str | None:
+        q = question.casefold()
+        asks_for_distinct_values = any(
+            phrase in q
+            for phrase in ("how many", "number of", "all the number", "list all", "show all", "what are all")
+        )
+        if not asks_for_distinct_values:
+            return None
+        dimensions = {
+            "district": ("district", "districts"),
+            "category": ("sector", "sectors", "category", "categories"),
+            "status": ("status", "statuses"),
+            "phase": ("phase", "phases"),
+        }
+        return next((column for column, terms in dimensions.items() if any(re.search(rf"\b{re.escape(term)}\b", q) for term in terms)), None)
+
+    @staticmethod
+    def _answer_distinct_dimension(dimension: str, question: str, trace: list[str]) -> QueryAnswer:
+        args = {"group_by": dimension, "operation": "count", "limit": 50}
+        trace.append(f"ACT: group_projects({json.dumps(args)})")
+        rows = group_projects(**args)
+        trace.append(f"OBSERVE: {json.dumps(rows)}")
+        names = sorted((str(row[dimension]) for row in rows), key=str.casefold)
+        label = {"category": "sectors", "status": "statuses"}.get(dimension, f"{dimension}s")
+        trace.append("STOP: deterministic distinct-value answer produced")
+        q = question.casefold()
+        wants_list = any(phrase in q for phrase in ("list", "show all", "what are all", "tell me all"))
+        answer = f"There are **{len(names):,} {label}** in the portfolio."
+        if wants_list:
+            answer += "\n\n" + "\n".join(f"- {name}" for name in names)
+        return QueryAnswer(answer, trace)
+
+    @staticmethod
+    def _answer_grouped_extreme(dimension: str, direction: str, operation: str, trace: list[str]) -> QueryAnswer:
+        args = {"group_by": dimension, "operation": operation, "limit": 50}
+        trace.append(f"ACT: group_projects({json.dumps(args)})")
+        rows = group_projects(**args)
+        trace.append(f"OBSERVE: {json.dumps(rows)}")
+        if not rows:
+            trace.append("STOP: no grouped portfolio results found")
+            return QueryAnswer("No matching portfolio records were found.", trace)
+        selected = rows[-1] if direction == "lowest" else rows[0]
+        group_name = selected[dimension]
+        label = "sector" if dimension == "category" else "district"
+        trace.append("STOP: deterministic grouped comparison produced")
+        if operation == "count":
+            return QueryAnswer(f"The **{group_name}** {label} has the {direction} number of projects, with **{int(selected['value']):,} projects**.", trace)
+        return QueryAnswer(f"The **{group_name}** {label} has the {direction} total allocation, at **PKR {selected['value']:,.2f} million**.", trace)
 
     @staticmethod
     def _rank_start_candidates(trace: list[str]) -> QueryAnswer:

@@ -139,6 +139,7 @@ notepad .env
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your-google-ai-api-key-here
 GEMINI_MODEL=gemini-3.6-flash
+GEMINI_FALLBACK_MODEL=gemini-2.5-flash
 DEMO_MODE=false
 ```
 

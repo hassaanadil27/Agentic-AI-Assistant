@@ -220,3 +220,22 @@ def render_allocation_waterfall(budget_available_m: float, total_recommended_m: 
     )
     fig.update_yaxes(showgrid=True, gridcolor="#F1F5F9", title=dict(text="PKR millions", font=dict(size=11, color="#64748B")))
     return fig
+
+
+def render_audit_findings(findings: list[dict]) -> go.Figure:
+    """Compare audit checks by number of flagged portfolio records."""
+    frame = pd.DataFrame([{"Check": str(item.get("check", "Check")).replace("_", " ").title(), "Issues": int(item.get("count", 0))} for item in findings]).sort_values("Issues")
+    fig = px.bar(frame, x="Issues", y="Check", orientation="h", color="Issues", color_continuous_scale=["#D9F3EF", "#D97706", "#BD3039"])
+    fig.update_layout(title="Issues Identified by Audit Check", template="plotly_white", height=max(300, len(frame) * 48), coloraxis_showscale=False, margin=dict(l=20, r=20, t=50, b=20))
+    fig.update_xaxes(title="Flagged records", gridcolor="#F1F5F9")
+    fig.update_yaxes(title=None)
+    return fig
+
+
+def render_specialist_activity(rows: list[dict]) -> go.Figure:
+    """Compare the amount of evidence produced by each specialist track."""
+    frame = pd.DataFrame(rows, columns=["Track", "Findings", "Evidence records"])
+    fig = px.bar(frame, x="Track", y="Findings", color="Track", color_discrete_sequence=["#2563EB", "#0D9488", "#D97706"], text_auto=True, hover_data=["Evidence records"])
+    fig.update_layout(title="Specialist Review Activity", template="plotly_white", height=320, showlegend=False, margin=dict(l=20, r=20, t=50, b=20))
+    fig.update_yaxes(title="Findings produced", gridcolor="#F1F5F9", rangemode="tozero")
+    return fig

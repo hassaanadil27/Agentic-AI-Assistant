@@ -70,6 +70,20 @@ def render_workflow_card(icon: str, title: str, description: str) -> None:
     )
 
 
+def render_track_card(name: str, purpose: str, activity: str, status: str = "Active", tone: str = "blue") -> None:
+    """Explain an agent/workflow track in clear, non-technical English."""
+    st.markdown(
+        f"""
+        <div class="track-card track-card--{safe_text(tone)}">
+          <div class="track-card__top"><strong>{safe_text(name)}</strong><span>{safe_text(status)}</span></div>
+          <p>{safe_text(purpose)}</p>
+          <div class="track-card__activity"><b>Current task</b><br>{safe_text(activity)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_callout(text: str) -> None:
     st.markdown(f'<div class="callout">{safe_text(text)}</div>', unsafe_allow_html=True)
 

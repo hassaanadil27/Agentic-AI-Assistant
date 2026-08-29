@@ -1,7 +1,6 @@
 """Autonomous portfolio risk-audit workspace."""
 from __future__ import annotations
 
-from dataclasses import asdict
 from datetime import date
 from pathlib import Path
 import pandas as pd
@@ -15,7 +14,9 @@ if _env.exists():
 from agents.audit_agent import AuditResult
 from orchestration.state import load_audit_state
 from ui.api_client import get_quality, run_audit
-from ui.components import render_empty_state, render_footer, render_header, render_section, render_sidebar_info, render_stat, render_trace
+from ui.components import render_empty_state, render_footer, render_header, render_section, render_sidebar_info, render_stat, render_trace, render_track_card
+from ui.charts import render_audit_findings
+from ui.pdf_reports import audit_report_pdf
 from ui.styles import APP_CSS
 
 st.set_page_config(page_title="Risk Audit · BSDI", page_icon="🛡️", layout="wide")
@@ -92,11 +93,27 @@ else:
         with column:
             render_stat(*metric)
 
+    render_section("What each audit track is doing", "Every track performs a separate, data-checked review. The results are combined into the conclusion below.")
+    track_columns = st.columns(min(4, max(1, len(result.plan))))
+    for index, check in enumerate(result.plan):
+        label = str(check).replace("_", " ").title()
+        matching = next((item for item in result.findings if item.get("check") == check), {})
+        count = int(matching.get("count", 0))
+        with track_columns[index % len(track_columns)]:
+            render_track_card(label, "Checks the portfolio for this governance or delivery condition.", f"Completed review; {count:,} record(s) require attention.", "Complete", "amber" if count else "green")
+
     report_tab, findings_tab, process_tab = st.tabs(["Prioritized report", "Finding details", "Audit process"])
     with report_tab:
         render_section("Audit conclusion", "A synthesized view of the independent checks, ordered for action.")
-        st.markdown(result.report)
-        st.download_button("Download audit report", result.report.encode("utf-8"), f"bsdi_audit_{date.today().isoformat()}.md", "text/markdown")
+        with st.container(border=True):
+            st.markdown(result.report)
+        chart_col, table_col = st.columns([1.15, .85])
+        with chart_col:
+            st.plotly_chart(render_audit_findings(result.findings), width="stretch", config={"displaylogo": False})
+        with table_col:
+            summary_table = pd.DataFrame([{"Audit track": str(item.get("check", "Check")).replace("_", " ").title(), "Flagged records": int(item.get("count", 0)), "Review status": "Needs attention" if int(item.get("count", 0)) else "Clear"} for item in result.findings])
+            st.dataframe(summary_table, width="stretch", hide_index=True)
+        st.download_button("Download formatted audit PDF", audit_report_pdf(result, st.session_state.audit_goal), f"bsdi_audit_{date.today().isoformat()}.pdf", "application/pdf", type="primary")
 
     with findings_tab:
         render_section("Check-by-check evidence", "Counts are complete; example rows are intentionally capped for readability.")
@@ -121,9 +138,7 @@ else:
             st.download_button("Download evidence examples", pd.DataFrame(export_rows).to_csv(index=False).encode("utf-8"), "bsdi_audit_evidence.csv", "text/csv")
 
     with process_tab:
-        render_section("Agent execution trace", "This is the public plan and tool activity, not private model reasoning.")
+        render_section("How the audit was completed", "A plain-English record of the checks performed against the portfolio.")
         render_trace(result.trace)
-        with st.expander("Structured result"):
-            st.json(asdict(result))
 
 render_footer()

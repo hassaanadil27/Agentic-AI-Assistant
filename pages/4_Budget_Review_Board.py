@@ -15,8 +15,9 @@ if _env.exists():
 from models.messages import AgentReport, FinalReport
 from orchestration.state import load_latest_run
 from ui.api_client import run_review
-from ui.charts import render_allocation_waterfall
-from ui.components import render_empty_state, render_footer, render_header, render_section, render_sidebar_info, render_stat, render_trace
+from ui.charts import render_allocation_waterfall, render_specialist_activity
+from ui.components import render_empty_state, render_footer, render_header, render_section, render_sidebar_info, render_stat, render_trace, render_track_card
+from ui.pdf_reports import review_report_pdf
 from ui.styles import APP_CSS
 
 st.set_page_config(page_title="Budget Review Board · BSDI", page_icon="👥", layout="wide")
@@ -88,6 +89,19 @@ else:
     for column, summary in zip(cards, summaries):
         with column:
             render_stat(*summary)
+    recommended_rows = [item.model_dump() for item in report.recommended_projects]
+
+    render_section("Review tracks and current work", "Each specialist reviews the same eligible pipeline from a different decision perspective.")
+    track_columns = st.columns(4)
+    track_details = [
+        ("Finance track", "Tests affordability and financial value.", "Scored project costs and budget exposure.", "blue"),
+        ("Delivery track", "Tests whether schemes are ready to execute.", "Checked tenders, ownership, contractors, and dates.", "teal"),
+        ("Equity track", "Compares geographic and sector distribution.", "Measured allocation balance across districts and sectors.", "amber"),
+        ("Coordinator track", "Combines evidence and enforces decision rules.", "Resolved trade-offs and produced the budget-safe shortlist.", "green"),
+    ]
+    for column, details in zip(track_columns, track_details):
+        with column:
+            render_track_card(details[0], details[1], details[2], status="Complete", tone=details[3])
 
     summary_tab, shortlist_tab, specialists_tab, process_tab = st.tabs(["Decision summary", "Funding shortlist", "Specialist evidence", "Process and conflicts"])
 
@@ -98,6 +112,16 @@ else:
         chart_left, note_right = st.columns([1.4, .8])
         with chart_left:
             st.plotly_chart(render_allocation_waterfall(report.budget_available_m, report.total_recommended_m, report.remaining_budget_m), width="stretch", config={"displaylogo": False})
+            if specialists:
+                specialist_activity = [
+                    {
+                        "Track": name.replace(" Agent", ""),
+                        "Findings": len(specialist.findings),
+                        "Evidence records": sum(len(finding.evidence) for finding in specialist.findings),
+                    }
+                    for name, specialist in specialists.items()
+                ]
+                st.plotly_chart(render_specialist_activity(specialist_activity), width="stretch", config={"displaylogo": False})
         with note_right:
             st.markdown("#### Decision guardrails")
             st.markdown(
@@ -111,7 +135,6 @@ else:
             )
             st.caption(f"Result source: {source_label or 'current local run'}")
 
-    recommended_rows = [item.model_dump() for item in report.recommended_projects]
     with shortlist_tab:
         render_section("Ranked funding shortlist", "Each recommendation includes the specialist assessments and the Coordinator's selection rationale.")
         if recommended_rows:
@@ -184,6 +207,10 @@ else:
             render_trace(activity)
 
     export = report.model_dump()
-    st.download_button("Download full structured review", json.dumps(export, indent=2, ensure_ascii=False).encode("utf-8"), f"bsdi_review_{date.today().isoformat()}.json", "application/json")
+    download_columns = st.columns(2)
+    with download_columns[0]:
+        st.download_button("Download formatted review PDF", review_report_pdf(report, specialists), f"bsdi_review_{date.today().isoformat()}.pdf", "application/pdf", type="primary", width="stretch")
+    with download_columns[1]:
+        st.download_button("Download structured review data", json.dumps(export, indent=2, ensure_ascii=False).encode("utf-8"), f"bsdi_review_{date.today().isoformat()}.json", "application/json", width="stretch")
 
 render_footer()

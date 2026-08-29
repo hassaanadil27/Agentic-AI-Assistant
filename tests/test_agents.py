@@ -83,9 +83,24 @@ def test_coordinator_produces_visible_conflicts():
 
 def test_query_agent_understands_highest_sector_allocation():
     result = QueryAgent(DemoProvider()).ask("which sector has the highest project allocation")
-    assert "Highest ranked sectors:" in result.answer
+    assert "highest total allocation" in result.answer
     assert "PKR" in result.answer
     assert "4,083.00 projects" not in result.answer
+
+
+def test_query_agent_understands_lowest_sector_project_count():
+    result = QueryAgent(DemoProvider()).ask("which sector has the lowes projects")
+    assert "lowest number of projects" in result.answer
+    assert "4,083" not in result.answer
+    assert any(line.startswith("ACT: group_projects") for line in result.trace)
+
+
+def test_query_agent_counts_and_lists_distinct_districts():
+    result = QueryAgent(DemoProvider()).ask("tell me all the number of districts")
+    assert "districts" in result.answer
+    assert "4,083" not in result.answer
+    assert "- " in result.answer
+    assert any(line.startswith("ACT: group_projects") for line in result.trace)
 
 
 def test_query_agent_handles_introduction_question():

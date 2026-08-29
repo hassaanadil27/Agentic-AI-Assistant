@@ -67,6 +67,7 @@ class GeminiProvider(LLMProvider):
 
     def __init__(self, model_name: Optional[str] = None, api_key: Optional[str] = None, client: object | None = None):
         self.model_name = model_name or _setting("GEMINI_MODEL", "gemini-3.6-flash")
+        self.fallback_model = _setting("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash")
         self.api_key = api_key or _setting("GEMINI_API_KEY") or _setting("GOOGLE_API_KEY")
         if not self.api_key:
             raise RuntimeError("GEMINI_API_KEY is not set. Add it to .env, or run with DEMO_MODE=true.")
@@ -84,9 +85,9 @@ class GeminiProvider(LLMProvider):
             )
             for message in messages
         ]
-        try:
-            response = self.client.models.generate_content(
-                model=self.model_name,
+        def generate(model_name: str):
+            return self.client.models.generate_content(
+                model=model_name,
                 contents=contents,
                 config=types.GenerateContentConfig(
                     system_instruction=system_prompt,
@@ -94,6 +95,21 @@ class GeminiProvider(LLMProvider):
                     temperature=0.2,
                 ),
             )
+
+        try:
+            try:
+                response = generate(self.model_name)
+            except Exception as primary_exc:  # noqa: BLE001
+                error_text = str(primary_exc).casefold()
+                temporary_failure = any(marker in error_text for marker in ("503", "unavailable", "high demand", "resource_exhausted", "429"))
+                if not temporary_failure or not self.fallback_model or self.fallback_model == self.model_name:
+                    raise
+                logger.warning(
+                    "Gemini model %s is temporarily unavailable; retrying with %s.",
+                    self.model_name,
+                    self.fallback_model,
+                )
+                response = generate(self.fallback_model)
             if not response.text:
                 raise ValueError("Gemini returned no text.")
             return LLMResponse(text=response.text, is_demo=False)

@@ -14,6 +14,7 @@ from tools.data_loader import get_dataframe
 from ui.api_client import get_portfolio
 from ui.charts import render_district_bar, render_sector_treemap, render_status_donut
 from ui.components import render_empty_state, render_footer, render_header, render_section, render_sidebar_info, render_stat
+from ui.pdf_reports import portfolio_report_pdf
 from ui.styles import APP_CSS
 
 st.set_page_config(page_title="Portfolio Explorer · BSDI", page_icon="📊", layout="wide")
@@ -133,7 +134,11 @@ with explorer_tab:
                 "Progress": st.column_config.ProgressColumn("Progress", min_value=0, max_value=100, format="%.1f%%"),
             },
         )
-        st.download_button("Download filtered results", display.to_csv(index=False).encode("utf-8"), "bsdi_filtered_schemes.csv", "text/csv")
+        export_columns = st.columns(2)
+        with export_columns[0]:
+            st.download_button("Download filtered table", display.to_csv(index=False).encode("utf-8"), "bsdi_filtered_schemes.csv", "text/csv", width="stretch")
+        with export_columns[1]:
+            st.download_button("Download portfolio PDF", portfolio_report_pdf(display.to_dict(orient="records"), float(filtered["cost_m"].sum(skipna=True))), "bsdi_portfolio_report.pdf", "application/pdf", type="primary", width="stretch")
 
 with quality_tab:
     render_section("How to read this data", "The portfolio is intentionally preserved as reported; uncertainty is surfaced rather than silently repaired.")

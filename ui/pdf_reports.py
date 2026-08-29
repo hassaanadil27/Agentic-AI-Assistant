@@ -67,6 +67,44 @@ def project_report(chat: dict) -> bytes:
     return _pdf("BSDI Project AI Agent — Project Report", sections)
 
 
+def portfolio_report_pdf(rows: list[dict], total_value_m: float) -> bytes:
+    scheme_lines = [
+        f"{row.get('Scheme ID', '')} | {row.get('District', '')} | {row.get('Status', '')} | PKR {float(row.get('Cost') or 0):,.2f}M | {row.get('Scheme', '')}"
+        for row in rows[:150]
+    ]
+    sections = [
+        ("Selection Summary", [f"Matching schemes: {len(rows):,}", f"Combined recorded value: PKR {total_value_m:,.2f} million."]),
+        ("Scheme Table", scheme_lines or ["No schemes matched the selected filters."]),
+        ("Reporting Note", ["The PDF lists up to 150 matching schemes for readability. The CSV download contains the complete filtered table."]),
+    ]
+    return _pdf("BSDI Portfolio Explorer Report", sections)
+
+
+def audit_report_pdf(result, goal: str) -> bytes:
+    findings = sorted(result.findings, key=lambda item: int(item.get("count", 0)), reverse=True)
+    sections = [
+        ("Audit Objective", [goal or "Portfolio governance and delivery-risk review."]),
+        ("Executive Conclusion", [result.report]),
+        ("Audit Tracks", [f"{str(item.get('check', 'Check')).replace('_', ' ').title()}: {int(item.get('count', 0)):,} flagged records." for item in findings]),
+        ("Method", ["Each check was selected by the audit agent and calculated against the portfolio dataset. Counts may overlap where one scheme has multiple risks."]),
+    ]
+    return _pdf("BSDI Risk and Governance Audit", sections)
+
+
+def review_report_pdf(report, specialists: dict) -> bytes:
+    projects = [f"{item.global_id} | {item.district} | PKR {item.cost_m:,.2f}M | score {item.score:.1f}: {item.description}" for item in report.recommended_projects]
+    specialist_notes = [f"{name.title()}: {specialist.summary}" for name, specialist in specialists.items()]
+    conflicts = [f"{item.global_id or 'Portfolio'}: {item.issue}. Resolution: {item.coordinator_resolution}" for item in report.conflicts]
+    sections = [
+        ("Executive Recommendation", [report.executive_summary]),
+        ("Budget Summary", [f"Available: PKR {report.budget_available_m:,.2f}M", f"Recommended: PKR {report.total_recommended_m:,.2f}M", f"Remaining: PKR {report.remaining_budget_m:,.2f}M"]),
+        ("Specialist Tracks", specialist_notes or ["No specialist summaries were recorded."]),
+        ("Recommended Schemes", projects or ["No schemes were selected."]),
+        ("Conflicts and Resolutions", conflicts or ["No material score conflicts were identified."]),
+    ]
+    return _pdf("BSDI Multi-Agent Budget Review", sections)
+
+
 def charts_report(chat: dict) -> bytes:
     sections = []
     for chart in chat.get("charts", []):
