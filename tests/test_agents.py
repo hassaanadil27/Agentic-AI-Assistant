@@ -83,24 +83,23 @@ def test_coordinator_produces_visible_conflicts():
 
 def test_query_agent_understands_highest_sector_allocation():
     result = QueryAgent(DemoProvider()).ask("which sector has the highest project allocation")
-    assert "highest total allocation" in result.answer
+    assert "highest total project cost" in result.answer
     assert "PKR" in result.answer
     assert "4,083.00 projects" not in result.answer
 
 
 def test_query_agent_understands_lowest_sector_project_count():
     result = QueryAgent(DemoProvider()).ask("which sector has the lowes projects")
-    assert "lowest number of projects" in result.answer
-    assert "4,083" not in result.answer
-    assert any(line.startswith("ACT: group_projects") for line in result.trace)
+    assert "lowest project count" in result.answer
+    assert result.table[0]["category"] == "Social Welfare"
+    assert any(line.startswith("ACT: execute_analysis") for line in result.trace)
 
 
 def test_query_agent_counts_and_lists_distinct_districts():
     result = QueryAgent(DemoProvider()).ask("tell me all the number of districts")
     assert "districts" in result.answer
-    assert "4,083" not in result.answer
-    assert "- " in result.answer
-    assert any(line.startswith("ACT: group_projects") for line in result.trace)
+    assert result.table[0]["Value"] == 39
+    assert any(line.startswith("ACT: execute_analysis") for line in result.trace)
 
 
 def test_query_agent_handles_introduction_question():
@@ -111,8 +110,19 @@ def test_query_agent_handles_introduction_question():
 
 def test_query_agent_recommends_which_project_to_start_first():
     result = QueryAgent(DemoProvider()).ask("which project to start first")
-    assert result.answer.startswith("Start **")
-    assert "highest-ranked Not Started project" in result.answer
-    assert "finance" in result.answer and "delivery" in result.answer and "equity" in result.answer
+    assert "highest-ranked eligible Not Started projects" in result.answer
+    assert "eligible Not Started projects" in result.answer
+    lowered = result.answer.casefold()
+    assert "finance" in lowered and "delivery" in lowered and "equity" in lowered
     assert "4,083.00 projects" not in result.answer
     assert any(line.startswith("ACT: rank_funding_candidates") for line in result.trace)
+
+
+def test_query_agent_recommends_five_projects_to_start_first():
+    result = QueryAgent(DemoProvider()).ask("which 5 projects should be started first")
+    assert result.intent == "ranking"
+    assert result.validation == "passed"
+    assert len(result.table) == 5
+    assert result.chart["data"] == result.table
+    assert all("Project ID" in row and "Priority score" in row for row in result.table)
+    assert "project count" not in result.answer.casefold()

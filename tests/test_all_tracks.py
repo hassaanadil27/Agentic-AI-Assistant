@@ -18,12 +18,12 @@ class FailingProvider(LLMProvider):
 
 def test_track_a_query_agent_calls_tool_before_answering():
     provider = SequenceProvider([
-        json.dumps({"action": "call_tool", "tool": "aggregate_projects", "arguments": {"operation": "total_cost", "status": "Not Started"}}),
-        json.dumps({"action": "final_answer", "content": "The grounded total was computed with status=Not Started."}),
+        json.dumps({"intent": "aggregate", "operation": "sum", "target_column": "cost_m", "filters": [{"column": "status", "operator": "eq", "value": "Not Started"}], "group_by": [], "sort": "none", "limit": 10, "chart": "none"}),
     ])
     result = QueryAgent(provider).ask("What is the total budget of Not Started projects?")
-    assert any(line.startswith("ACT: aggregate_projects") for line in result.trace)
+    assert any(line.startswith("ACT: execute_analysis") for line in result.trace)
     assert any(line.startswith("OBSERVE:") for line in result.trace)
+    assert result.validation == "passed"
 
 
 def test_track_b_agent_selects_and_executes_four_checks():
@@ -63,8 +63,8 @@ def test_track_a_removes_model_fabricated_default_filters():
 
 def test_tracks_a_and_b_remain_grounded_when_api_is_unavailable():
     query = QueryAgent(FailingProvider()).ask("What is the total budget of all Not Started projects?")
-    assert "PKR millions" in query.answer
-    assert any(line.startswith("ACT: aggregate_projects") for line in query.trace)
+    assert "PKR" in query.answer
+    assert any(line.startswith("ACT: execute_analysis") for line in query.trace)
     audit = AuditAgent(FailingProvider()).run("Find portfolio risks")
     assert len(audit.findings) >= 4
     assert "Prioritized portfolio audit" in audit.report

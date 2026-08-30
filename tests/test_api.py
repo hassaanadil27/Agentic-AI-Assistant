@@ -24,3 +24,15 @@ def test_query_validation():
     with TestClient(app) as client:
         response = client.post("/api/query", json={"question": ""})
     assert response.status_code == 422
+
+
+def test_query_returns_validated_evidence_contract(monkeypatch):
+    monkeypatch.setenv("DEMO_MODE", "true")
+    with TestClient(app) as client:
+        response = client.post("/api/query", json={"question": "What is the average project cost?"})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["validation"] == "passed"
+    assert payload["evidence"]["dataset"] == "Projects.xlsx"
+    assert payload["evidence"]["operation"] == "mean"
+    assert payload["table"] and payload["chart"] is None

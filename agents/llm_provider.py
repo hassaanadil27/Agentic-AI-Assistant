@@ -67,7 +67,7 @@ class GeminiProvider(LLMProvider):
 
     def __init__(self, model_name: Optional[str] = None, api_key: Optional[str] = None, client: object | None = None):
         self.model_name = model_name or _setting("GEMINI_MODEL", "gemini-3.6-flash")
-        self.fallback_model = _setting("GEMINI_FALLBACK_MODEL", "gemini-2.5-flash")
+        self.fallback_model = _setting("GEMINI_FALLBACK_MODEL")
         self.api_key = api_key or _setting("GEMINI_API_KEY") or _setting("GOOGLE_API_KEY")
         if not self.api_key:
             raise RuntimeError("GEMINI_API_KEY is not set. Add it to .env, or run with DEMO_MODE=true.")
@@ -116,101 +116,6 @@ class GeminiProvider(LLMProvider):
         except Exception as exc:  # noqa: BLE001
             logger.error("Gemini API call failed: %s", exc)
             raise RuntimeError(f"Gemini API call failed: {exc}") from exc
-
-
-class HuggingFaceProvider(LLMProvider):
-    """Wraps huggingface_hub.InferenceClient for chat-completion style calls."""
-
-    def __init__(self, model_name: Optional[str] = None, api_token: Optional[str] = None):
-        from huggingface_hub import InferenceClient  # imported lazily
-
-        self.model_name = model_name or os.environ.get("HF_MODEL") or os.environ.get(
-            "MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct"
-        )
-        token = api_token or os.environ.get("HF_TOKEN") or os.environ.get("HF_API_TOKEN")
-        if not token:
-            raise RuntimeError(
-                "HF_TOKEN is not set. Add it to your .env file, or run with DEMO_MODE=true."
-            )
-        self.client = InferenceClient(model=self.model_name, token=token)
-
-    def complete(self, system_prompt: str, messages: list[dict]) -> LLMResponse:
-        chat_messages = [{"role": "system", "content": system_prompt}] + messages
-        try:
-            result = self.client.chat_completion(
-                messages=chat_messages,
-                max_tokens=900,
-                temperature=0.2,
-            )
-            text = result.choices[0].message.content
-            return LLMResponse(text=text, is_demo=False)
-        except Exception as exc:  # noqa: BLE001
-            logger.error("Hugging Face inference call failed: %s", exc)
-            raise
-
-
-def _rapidapi_key() -> Optional[str]:
-    """Read the normal env var or the legacy RapidAPI Python snippet in .env."""
-    configured = os.environ.get("RAPIDAPI_KEY") or os.environ.get("RAPID_API_KEY")
-    if configured:
-        return configured.strip().strip('"\'')
-    env_path = Path(__file__).resolve().parent.parent / ".env"
-    try:
-        content = env_path.read_text(encoding="utf-8")
-    except OSError:
-        return None
-    match = re.search(
-        r"(?i)[\"']x-rapidapi-key[\"']\s*:\s*[\"']([^\"']+)[\"']",
-        content,
-    )
-    return match.group(1).strip() if match else None
-
-
-class RapidAPIProvider(LLMProvider):
-    """Client for the OPEN AI API published through RapidAPI."""
-
-    def __init__(self, api_key: Optional[str] = None, host: Optional[str] = None, base_url: Optional[str] = None):
-        self.api_key = api_key or _rapidapi_key()
-        self.host = host or os.environ.get("RAPIDAPI_HOST", "open-ai21.p.rapidapi.com")
-        self.base_url = base_url or os.environ.get(
-            "RAPIDAPI_URL", f"https://{self.host}/conversationgpt35"
-        )
-        self.model_name = os.environ.get("RAPIDAPI_MODEL", "GPT-3.5 via RapidAPI")
-        if not self.api_key:
-            raise RuntimeError("RAPIDAPI_KEY is not set in .env.")
-
-    def complete(self, system_prompt: str, messages: list[dict]) -> LLMResponse:
-        payload = json.dumps({
-            "messages": [{"role": "system", "content": system_prompt}] + messages,
-            "web_access": False,
-            "system_prompt": system_prompt,
-            "temperature": 0.2,
-            "top_k": 5,
-            "top_p": 0.9,
-            "max_tokens": 900,
-        }).encode("utf-8")
-        request = urllib.request.Request(
-            self.base_url,
-            data=payload,
-            headers={
-                "Content-Type": "application/json",
-                "X-RapidAPI-Key": self.api_key,
-                "X-RapidAPI-Host": self.host,
-            },
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=90) as response:
-                result = json.loads(response.read().decode("utf-8"))
-            text = result.get("result") or result.get("text")
-            if not text:
-                raise ValueError(f"RapidAPI response contained no answer: {str(result)[:300]}")
-            return LLMResponse(text=str(text), is_demo=False)
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="replace")[:1000]
-            raise RuntimeError(f"RapidAPI call failed (HTTP {exc.code}): {detail}") from exc
-        except (urllib.error.URLError, KeyError, ValueError) as exc:
-            raise RuntimeError(f"RapidAPI call failed: {exc}") from exc
 
 
 class DemoProvider(LLMProvider):

@@ -12,9 +12,9 @@ _env = Path(__file__).resolve().parent.parent / ".env"
 if _env.exists():
     load_dotenv(_env, override=True)
 
-from ui.api_client import ask_query
+from ui.api_client import ask_query_detailed
 from ui.chat_store import load_chats, new_chat, save_chats, title_from_question
-from ui.charts import create_chart_spec, render_figure, should_chart
+from ui.charts import render_figure
 from ui.components import render_empty_state, render_footer, render_header, render_section, render_sidebar_info, render_trace
 from ui.pdf_reports import project_report
 from ui.styles import APP_CSS
@@ -43,6 +43,23 @@ def active_chat() -> dict:
     st.session_state.chats.insert(0, candidate)
     st.session_state.active_chat_id = candidate["id"]
     return candidate
+
+
+def render_analysis_payload(message: dict) -> None:
+    """Render evidence and visuals produced by the same validated query."""
+    table, chart, evidence = message.get("table") or [], message.get("chart"), message.get("evidence")
+    if table:
+        st.dataframe(pd.DataFrame(table), width="stretch", hide_index=True)
+    if chart and chart.get("data"):
+        st.plotly_chart(render_figure(chart), width="stretch", config={"displaylogo": False, "responsive": True})
+    if evidence:
+        with st.expander("Evidence and calculation details"):
+            st.markdown(f"**Dataset:** `{evidence.get('dataset', 'Projects.xlsx')}`")
+            st.markdown(f"**Records analyzed:** {int(evidence.get('rows_analyzed', 0)):,} of {int(evidence.get('rows_available', 0)):,}")
+            st.markdown("**Columns:** " + ", ".join(f"`{column}`" for column in evidence.get("columns", [])))
+            st.markdown(f"**Calculation:** `{evidence.get('operation', 'not specified')}`")
+            filters = evidence.get("filters") or []
+            st.markdown("**Filters:** " + ("; ".join(f"{item['column']} {item['operator']} {item['value']}" for item in filters) if filters else "None — full portfolio"))
 
 
 def persist() -> None:
@@ -103,10 +120,14 @@ for message in chat["messages"]:
     role = message.get("role", "user")
     with st.chat_message(role, avatar="👤" if role == "user" else "🤖"):
         st.markdown(message.get("content", ""))
+        if role == "assistant":
+            render_analysis_payload(message)
         if message.get("timestamp"):
             st.caption(message["timestamp"])
 
-for spec in chat.get("charts", []):
+# Legacy keyword-generated charts are intentionally not rendered. New charts
+# are stored on the assistant message and come from the validated query result.
+for spec in []:
     with st.chat_message("assistant", avatar="📊"):
         st.markdown(f"**{spec['title']}**")
         st.plotly_chart(render_figure(spec), width="stretch", config={"displaylogo": False, "responsive": True})
@@ -127,19 +148,17 @@ if prompt:
     with st.chat_message("assistant", avatar="🤖"):
         with st.spinner("Checking the portfolio dataset…"):
             try:
-                answer, trace = ask_query(prompt, chat["messages"][:-1])
+                response = ask_query_detailed(prompt, chat["messages"][:-1])
+                answer, trace = response["answer"], response["trace"]
             except Exception as exc:
                 logging.exception("Query failed")
                 answer = "I could not complete that analysis. Check that the dataset is available, then try again."
                 trace = [f"ERROR: {exc}"]
+                response = {"answer": answer, "trace": trace}
         st.markdown(answer)
-    chat["messages"].append({"role": "assistant", "content": answer, "timestamp": timestamp})
+        render_analysis_payload(response)
+    chat["messages"].append({"role": "assistant", "content": answer, "timestamp": timestamp, "evidence": response.get("evidence"), "table": response.get("table", []), "chart": response.get("chart"), "intent": response.get("intent"), "validation": response.get("validation")})
     st.session_state.last_trace = trace
-    if should_chart(prompt):
-        try:
-            chat.setdefault("charts", []).append(create_chart_spec(prompt))
-        except Exception:
-            logging.exception("Chart generation failed")
     persist()
     st.rerun()
 

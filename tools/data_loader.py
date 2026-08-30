@@ -15,7 +15,7 @@ import pandas as pd
 from data_processing.cleaner import load_and_clean_projects
 from models.schemas import DatasetMetadata
 
-_CACHE: dict[str, object] = {"df": None, "warnings": None, "path": None}
+_CACHE: dict[str, object] = {"df": None, "warnings": None, "path": None, "mtime": None}
 
 DEFAULT_DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "Projects.xlsx"
 
@@ -27,11 +27,13 @@ def load_projects(path: Optional[str] = None, force_reload: bool = False) -> Dat
     """
     target_path = Path(path) if path else DEFAULT_DATA_PATH
 
-    if _CACHE["df"] is None or force_reload or _CACHE["path"] != str(target_path):
+    current_mtime = target_path.stat().st_mtime_ns if target_path.exists() else None
+    if _CACHE["df"] is None or force_reload or _CACHE["path"] != str(target_path) or _CACHE["mtime"] != current_mtime:
         result = load_and_clean_projects(target_path)
         _CACHE["df"] = result.df
         _CACHE["warnings"] = result.warnings
         _CACHE["path"] = str(target_path)
+        _CACHE["mtime"] = current_mtime
 
     df: pd.DataFrame = _CACHE["df"]  # type: ignore
 

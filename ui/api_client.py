@@ -43,7 +43,7 @@ def _embedded_request(path: str, payload: dict | None = None) -> dict:
 
         provider, is_demo = get_provider()
         result = QueryAgent(provider).ask(payload["question"], payload.get("history", []))
-        return {"answer": result.answer, "trace": result.trace, "is_demo": is_demo}
+        return {**result.model_dump(), "is_demo": is_demo}
     if path == "/api/audit":
         from agents.audit_agent import AuditAgent
         from agents.llm_provider import get_provider
@@ -93,6 +93,11 @@ def _request(method: str, path: str, **kwargs) -> dict:
 def ask_query(question: str, history: list[dict]) -> tuple[str, list[str]]:
     data = _request("POST", "/api/query", json={"question": question, "history": history})
     return data["answer"], data["trace"]
+
+
+def ask_query_detailed(question: str, history: list[dict]) -> dict:
+    """Return the complete validated answer/evidence/table/chart contract."""
+    return _request("POST", "/api/query", json={"question": question, "history": history})
 
 
 def run_audit(goal: str) -> AuditResult:

@@ -55,12 +55,27 @@ def _pdf(title: str, sections: list[tuple[str, list[str]]]) -> bytes:
 def project_report(chat: dict) -> bytes:
     questions = [m["content"] for m in chat["messages"] if m["role"] == "user"]
     answers = [m["content"] for m in chat["messages"] if m["role"] == "assistant"]
+    evidence_lines = []
+    table_lines = []
+    for message in chat["messages"]:
+        if message.get("role") != "assistant":
+            continue
+        evidence = message.get("evidence") or {}
+        if evidence:
+            evidence_lines.append(
+                f"Dataset {evidence.get('dataset', 'Projects.xlsx')}; rows {evidence.get('rows_analyzed', 0)}; "
+                f"columns {', '.join(evidence.get('columns', []))}; operation {evidence.get('operation', 'n/a')}."
+            )
+        for row in (message.get("table") or [])[:10]:
+            table_lines.append(" | ".join(f"{key}: {value}" for key, value in row.items()))
     sections = [
         ("Project Overview", ["BSDI Project AI Agent analyses the Government of Balochistan development portfolio with data-grounded AI assistance."]),
         ("Objective", ["Support transparent project analysis, prioritisation, delivery review, and equitable funding decisions."]),
         ("Features & Technologies", ["Persistent AI chat, multi-agent review, interactive Plotly charts, pandas data analysis, Streamlit, Google Gemini integration, and downloadable reports."]),
         ("Questions Asked", questions or ["No questions in this conversation."]),
         ("AI Responses and Key Findings", answers or ["No responses in this conversation."]),
+        ("Evidence and Calculations", evidence_lines or ["No structured analytical evidence was recorded."]),
+        ("Result Tables", table_lines or ["No result tables were generated."]),
         ("Generated Charts", [f"{c['title']} — prompted by: {c['question']}" for c in chat.get("charts", [])] or ["No charts generated."]),
         ("Conclusion", ["This report reflects the live conversation and generated analytical outputs."]),
     ]

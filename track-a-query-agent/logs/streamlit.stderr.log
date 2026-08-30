@@ -1,0 +1,105 @@
+2026-08-31 01:10:28.703 Uvicorn server started on 127.0.0.1:8502
+2026-08-31 01:18:47.792 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-31 01:18:47.882 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-31 01:18:51.424 Uncaught app execution
+Traceback (most recent call last):
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\streamlit\runtime\scriptrunner\exec_code.py", line 136, in exec_func_with_error_handling
+    result = func()
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\streamlit\runtime\scriptrunner\script_runner.py", line 816, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\track-a-query-agent\app\main.py", line 55, in <module>
+    r=filter_projects(district=None if district=="All" else district,category=None if category=="All" else category,status=None if status=="All" else status,executing_agency=None if agency=="All" else agency,min_cost=cost[0],max_cost=cost[1],limit=500)
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\track-a-query-agent\app\tools\core.py", line 39, in filter_projects
+    df,f=_filtered(None,district=district,category=category,status=status,phase=phase,executing_agency=executing_agency,contractor=contractor,min_cost=min_cost,max_cost=max_cost,min_progress=min_progress,max_progress=max_progress,nit=nit,search_text=search_text,**extra)
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\track-a-query-agent\app\tools\core.py", line 26, in _filtered
+    elif key == "max_cost": df=df["Cost (M)"] <= float(value)
+                               ~~^^^^^^^^^^^^
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\pandas\core\series.py", line 959, in __getitem__
+    return self._get_value(key)
+           ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\pandas\core\series.py", line 1046, in _get_value
+    loc = self.index.get_loc(label)
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\pandas\core\indexes\range.py", line 525, in get_loc
+    raise KeyError(key)
+KeyError: 'Cost (M)'
+2026-08-31 01:18:59.083 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-31 01:18:59.130 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-31 01:19:48.300 Uncaught app execution
+Traceback (most recent call last):
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\streamlit\runtime\scriptrunner\exec_code.py", line 136, in exec_func_with_error_handling
+    result = func()
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\streamlit\runtime\scriptrunner\script_runner.py", line 816, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+    ~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\track-a-query-agent\app\main.py", line 55, in <module>
+    r=filter_projects(district=None if district=="All" else district,category=None if category=="All" else category,status=None if status=="All" else status,executing_agency=None if agency=="All" else agency,min_cost=cost[0],max_cost=cost[1],limit=500)
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\track-a-query-agent\app\tools\core.py", line 39, in filter_projects
+    df,f=_filtered(None,district=district,category=category,status=status,phase=phase,executing_agency=executing_agency,contractor=contractor,min_cost=min_cost,max_cost=max_cost,min_progress=min_progress,max_progress=max_progress,nit=nit,search_text=search_text,**extra)
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\track-a-query-agent\app\tools\core.py", line 26, in _filtered
+    elif key == "max_cost": df=df["Cost (M)"] <= float(value)
+                               ~~^^^^^^^^^^^^
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\pandas\core\series.py", line 959, in __getitem__
+    return self._get_value(key)
+           ~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\pandas\core\series.py", line 1046, in _get_value
+    loc = self.index.get_loc(label)
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\pandas\core\indexes\range.py", line 525, in get_loc
+    raise KeyError(key)
+KeyError: 'Cost (M)'
+2026-08-31 01:19:50.196 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-31 01:19:50.317 Please replace `use_container_width` with `width`.
+
+`use_container_width` will be removed after 2025-12-31.
+
+For `use_container_width=True`, use `width='stretch'`. For `use_container_width=False`, use `width='content'`.
+2026-08-31 01:20:22.426 Script compilation error
+Traceback (most recent call last):
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\streamlit\runtime\scriptrunner\script_runner.py", line 668, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\streamlit\runtime\scriptrunner\script_cache.py", line 68, in get_bytecode
+    with open_python_file(script_path) as f:
+         ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\streamlit\source_util.py", line 54, in open_python_file
+    return tokenize.open(filename)
+           ~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Python314\Lib\tokenize.py", line 461, in open
+    buffer = _builtin_open(filename, 'rb')
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Lenovo\\Downloads\\pmts-multi-agent-review-board\\pmts-multi-agent-review-board\\track-a-query-agent\\app\\main.py'
+2026-08-31 01:20:22.491 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-08-31 01:20:24.932 Script compilation error
+Traceback (most recent call last):
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\streamlit\runtime\scriptrunner\script_runner.py", line 668, in _run_script
+    code = self._script_cache.get_bytecode(script_path)
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\streamlit\runtime\scriptrunner\script_cache.py", line 68, in get_bytecode
+    with open_python_file(script_path) as f:
+         ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\Downloads\pmts-multi-agent-review-board\pmts-multi-agent-review-board\venv\Lib\site-packages\streamlit\source_util.py", line 54, in open_python_file
+    return tokenize.open(filename)
+           ~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Python314\Lib\tokenize.py", line 461, in open
+    buffer = _builtin_open(filename, 'rb')
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Lenovo\\Downloads\\pmts-multi-agent-review-board\\pmts-multi-agent-review-board\\track-a-query-agent\\app\\main.py'
+2026-08-31 01:20:24.937 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.

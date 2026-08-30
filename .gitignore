@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 logs/*.log
+logs/*.jsonl
 run_logs/*.json
 venv/
 .venv/

@@ -71,7 +71,7 @@ def query(payload: QueryRequest) -> dict:
     try:
         provider, is_demo = get_provider()
         result = QueryAgent(provider).ask(payload.question, payload.history)
-        return {"answer": result.answer, "trace": result.trace, "is_demo": is_demo}
+        return {**result.model_dump(), "is_demo": is_demo}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Query failed: {exc}") from exc
 
