@@ -1,4 +1,4 @@
-"""Balochistan Development Intelligence Platform landing page."""
+"""Balochistan Special Development Initiative AI Agent landing page."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -13,7 +13,7 @@ from ui.api_client import get_portfolio
 from ui.components import render_footer, render_header, render_section, render_sidebar_info, render_stat, render_workflow_card
 from ui.styles import APP_CSS
 
-st.set_page_config(page_title="Balochistan Development Intelligence", page_icon="🏛️", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="BALOCHISTAN SPECIAL DEVELOPMENT INITIATIVE AI Agent", page_icon="🏛️", layout="wide", initial_sidebar_state="expanded")
 st.markdown(APP_CSS, unsafe_allow_html=True)
 render_sidebar_info()
 
@@ -31,7 +31,7 @@ in_progress = int(metadata.status_counts.get("In Progress", 0))
 not_started = int(metadata.status_counts.get("Not Started", 0))
 
 render_header(
-    "Balochistan Development Intelligence",
+    "BALOCHISTAN SPECIAL DEVELOPMENT INITIATIVE AI Agent",
     "A single evidence-led workspace to explore the development portfolio, investigate delivery risk, and make defensible funding decisions.",
     "Portfolio ready",
     "green",

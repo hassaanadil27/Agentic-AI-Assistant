@@ -20,7 +20,7 @@ from ui.pdf_reports import project_report
 from ui.styles import APP_CSS
 
 logging.basicConfig(level=logging.WARNING)
-st.set_page_config(page_title="AI Assistant · BSDI", page_icon="💬", layout="wide")
+st.set_page_config(page_title="AI Assistant · BALOCHISTAN SPECIAL DEVELOPMENT INITIATIVE AI Agent", page_icon="💬", layout="wide")
 st.markdown(APP_CSS, unsafe_allow_html=True)
 render_sidebar_info()
 render_header("AI project assistant", "Ask a question in everyday language and get a clear answer checked against the development portfolio.", "Data-checked answers", "green")

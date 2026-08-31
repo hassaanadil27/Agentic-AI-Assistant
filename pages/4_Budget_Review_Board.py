@@ -21,7 +21,7 @@ from ui.components import render_empty_state, render_footer, render_header, rend
 from ui.pdf_reports import review_report_pdf
 from ui.styles import APP_CSS
 
-st.set_page_config(page_title="Budget Review Board · BSDI", page_icon="👥", layout="wide")
+st.set_page_config(page_title="Budget Review Board · BALOCHISTAN SPECIAL DEVELOPMENT INITIATIVE AI Agent", page_icon="👥", layout="wide")
 st.markdown(APP_CSS, unsafe_allow_html=True)
 render_sidebar_info()
 render_header("Budget review board", "Finance, Delivery, and Equity specialists assess the same pipeline, then a Coordinator resolves trade-offs and enforces the funding ceiling.", "Three specialist agents", "blue")

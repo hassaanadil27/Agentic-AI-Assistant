@@ -19,7 +19,7 @@ from ui.charts import render_audit_findings
 from ui.pdf_reports import audit_report_pdf
 from ui.styles import APP_CSS
 
-st.set_page_config(page_title="Risk Audit · BSDI", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="Risk Audit · BALOCHISTAN SPECIAL DEVELOPMENT INITIATIVE AI Agent", page_icon="🛡️", layout="wide")
 st.markdown(APP_CSS, unsafe_allow_html=True)
 render_sidebar_info()
 render_header("Risk and governance audit", "Set an audit objective, let the agent choose independent checks, and review each flag with counts and source-record examples.", "Python-verified scan", "amber")

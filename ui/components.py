@@ -155,7 +155,7 @@ def render_sidebar_info() -> None:
             f"""
             <div class="sidebar-brand">
               <div class="sidebar-brand__eyebrow">GOVERNMENT PORTFOLIO</div>
-              <div class="sidebar-brand__title">BSDI Platform</div>
+              <div class="sidebar-brand__title">BALOCHISTAN SPECIAL DEVELOPMENT INITIATIVE AI Agent</div>
               <div class="sidebar-brand__copy">Clear, evidence-led development decisions.</div>
             </div>
             """
@@ -184,6 +184,6 @@ def render_sidebar_info() -> None:
 
 def render_footer() -> None:
     st.markdown(
-        '<div class="footer-text"><strong>BSDI Platform</strong> · Source calculations run against the verified portfolio dataset · PKR values shown in millions</div>',
+        '<div class="footer-text"><strong>BALOCHISTAN SPECIAL DEVELOPMENT INITIATIVE AI Agent</strong> · Source calculations run against the verified portfolio dataset · PKR values shown in millions</div>',
         unsafe_allow_html=True,
     )

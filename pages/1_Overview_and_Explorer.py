@@ -17,7 +17,7 @@ from ui.components import render_empty_state, render_footer, render_header, rend
 from ui.pdf_reports import portfolio_report_pdf
 from ui.styles import APP_CSS
 
-st.set_page_config(page_title="Portfolio Explorer · BSDI", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Portfolio Explorer · BALOCHISTAN SPECIAL DEVELOPMENT INITIATIVE AI Agent", page_icon="📊", layout="wide")
 st.markdown(APP_CSS, unsafe_allow_html=True)
 render_sidebar_info()
 render_header("Portfolio overview", "See where funding sits, how delivery is progressing, and locate any scheme with precise multi-criteria filters.", "Direct dataset access", "blue")
